@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// ファイルコピー結果
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CopyResult {
     pub copied: Vec<PathBuf>,
     pub failed: Vec<(PathBuf, String)>,

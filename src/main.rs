@@ -1,7 +1,9 @@
 mod commands;
 mod config;
 mod copy;
+mod errors;
 mod interactive;
+mod output;
 mod worktree;
 
 use anyhow::{Context, Result};
@@ -13,6 +15,14 @@ use std::path::PathBuf;
 #[command(name = "wtenv")]
 #[command(about = "Git worktree environment manager", version, long_about = None)]
 struct Cli {
+    /// 詳細出力モード
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
+    /// サイレントモード（エラー以外の出力を抑制）
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -64,26 +74,54 @@ struct InitArgs {
     force: bool,
 }
 
+/// 出力設定
+#[derive(Clone, Copy)]
+struct OutputOptions {
+    verbose: bool,
+    quiet: bool,
+}
+
+impl OutputOptions {
+    fn should_print(&self) -> bool {
+        !self.quiet
+    }
+
+    fn should_print_verbose(&self) -> bool {
+        self.verbose && !self.quiet
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    let opts = OutputOptions {
+        verbose: cli.verbose,
+        quiet: cli.quiet,
+    };
+
     match cli.command {
-        Commands::Create(args) => cmd_create(args),
-        Commands::List => cmd_list(),
-        Commands::Remove(args) => cmd_remove(args),
-        Commands::Init(args) => cmd_init(args),
-        Commands::Config => cmd_config(),
+        Commands::Create(args) => cmd_create(args, opts),
+        Commands::List => cmd_list(opts),
+        Commands::Remove(args) => cmd_remove(args, opts),
+        Commands::Init(args) => cmd_init(args, opts),
+        Commands::Config => cmd_config(opts),
     }
 }
 
 /// createサブコマンド
-fn cmd_create(args: CreateArgs) -> Result<()> {
-    println!("{}", "🌲 worktreeを作成中...".blue());
+fn cmd_create(args: CreateArgs, opts: OutputOptions) -> Result<()> {
+    if opts.should_print() {
+        println!("{}", "🌲 worktreeを作成中...".blue());
+    }
 
     // 1. メインworktree確認
     let _current_dir = std::env::current_dir()
         .context("カレントディレクトリの取得に失敗しました")?;
     let repo_root = worktree::get_repo_root()?;
+
+    if opts.should_print_verbose() {
+        println!("  {} リポジトリルート: {}", "→".bright_black(), repo_root.display());
+    }
 
     // 2. 設定ファイル読み込み
     let config_path = args.config.unwrap_or(repo_root.clone());
@@ -119,31 +157,66 @@ fn cmd_create(args: CreateArgs) -> Result<()> {
     };
 
     // 5. worktree作成
-    println!("  ブランチ: {}", branch.cyan());
-    println!("  パス: {}", worktree_path.display().to_string().cyan());
+    if opts.should_print() {
+        println!("  ブランチ: {}", branch.cyan());
+        println!("  パス: {}", worktree_path.display().to_string().cyan());
+    }
 
     worktree::create_worktree(&worktree_path, &branch)
         .context("worktreeの作成に失敗しました")?;
 
-    println!("{}", "✓ worktreeを作成しました".green());
+    if opts.should_print() {
+        println!("{}", "✓ worktreeを作成しました".green());
+    }
 
-    // 5. ファイルコピー
+    // 6. ファイルコピー
     if !args.no_copy && !config.copy.is_empty() {
-        println!("\n{}", "📋 環境ファイルをコピー中...".blue());
+        if opts.should_print() {
+            println!("\n{}", "📋 環境ファイルをコピー中...".blue());
+        }
 
         let files = copy::expand_patterns(&repo_root, &config.copy)?;
         let files = copy::filter_excluded(files, &config.exclude);
 
         if files.is_empty() {
-            println!("  {} コピーするファイルが見つかりませんでした", "ℹ".blue());
+            if opts.should_print() {
+                println!("  {} コピーするファイルが見つかりませんでした", "ℹ".blue());
+            }
         } else {
-            let result = copy::copy_files(&files, &repo_root, &worktree_path)?;
+            // プログレスバーを使用（quietモードでなければ）
+            let result = if opts.should_print() && files.len() > 3 {
+                let pb = output::create_progress_bar(files.len() as u64, "コピー中...");
+                let mut copied = Vec::new();
+                let mut failed = Vec::new();
 
-            println!(
-                "\n{} {}個のファイルをコピーしました",
-                "✅".green(),
-                result.copied.len()
-            );
+                for file in &files {
+                    let relative_path = file.strip_prefix(&repo_root).unwrap_or(file);
+                    let dest_file = worktree_path.join(relative_path);
+
+                    if let Some(parent) = dest_file.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+
+                    match std::fs::copy(file, &dest_file) {
+                        Ok(_) => copied.push(relative_path.to_path_buf()),
+                        Err(e) => failed.push((file.clone(), e.to_string())),
+                    }
+                    pb.inc(1);
+                }
+                pb.finish_and_clear();
+
+                copy::CopyResult { copied, failed }
+            } else {
+                copy::copy_files(&files, &repo_root, &worktree_path)?
+            };
+
+            if opts.should_print() {
+                println!(
+                    "{} {}個のファイルをコピーしました",
+                    "✅".green(),
+                    result.copied.len()
+                );
+            }
 
             if !result.failed.is_empty() {
                 eprintln!(
@@ -151,27 +224,36 @@ fn cmd_create(args: CreateArgs) -> Result<()> {
                     "⚠️ ".yellow(),
                     result.failed.len()
                 );
+                if opts.should_print_verbose() {
+                    for (path, error) in &result.failed {
+                        eprintln!("  {} {}: {}", "✗".red(), path.display(), error);
+                    }
+                }
             }
         }
     }
 
-    // 6. post-createコマンド実行
+    // 7. post-createコマンド実行
     if !args.no_post_create && !config.post_create.is_empty() {
         commands::run_post_create_commands(&config.post_create, &worktree_path)?;
     }
 
-    println!("\n{}", "✨ worktreeのセットアップが完了しました!".green().bold());
-    println!("  移動するには: {}", format!("cd {}", worktree_path.display()).cyan());
+    if opts.should_print() {
+        println!("\n{}", "✨ worktreeのセットアップが完了しました!".green().bold());
+        println!("  移動するには: {}", format!("cd {}", worktree_path.display()).cyan());
+    }
 
     Ok(())
 }
 
 /// listサブコマンド
-fn cmd_list() -> Result<()> {
+fn cmd_list(opts: OutputOptions) -> Result<()> {
     let worktrees = worktree::list_worktrees()?;
 
     if worktrees.is_empty() {
-        println!("worktreeが見つかりませんでした");
+        if opts.should_print() {
+            println!("worktreeが見つかりませんでした");
+        }
         return Ok(());
     }
 
@@ -183,41 +265,59 @@ fn cmd_list() -> Result<()> {
             .map(|b| format!("[{}]", b))
             .unwrap_or_else(|| "[detached]".to_string());
 
-        println!(
-            "{} {}{}  {} {}",
-            "📁".blue(),
-            wt.path.display().to_string().cyan(),
-            main_marker.bright_black(),
-            branch_display.green(),
-            wt.commit[..7.min(wt.commit.len())].bright_black()
-        );
+        if opts.should_print_verbose() {
+            // 詳細モード: より多くの情報を表示
+            println!(
+                "{} {}{}\n    ブランチ: {}\n    コミット: {}",
+                "📁".blue(),
+                wt.path.display().to_string().cyan(),
+                main_marker.bright_black(),
+                branch_display.green(),
+                wt.commit.bright_black()
+            );
+        } else {
+            println!(
+                "{} {}{}  {} {}",
+                "📁".blue(),
+                wt.path.display().to_string().cyan(),
+                main_marker.bright_black(),
+                branch_display.green(),
+                wt.commit[..7.min(wt.commit.len())].bright_black()
+            );
+        }
     }
 
     Ok(())
 }
 
 /// removeサブコマンド
-fn cmd_remove(args: RemoveArgs) -> Result<()> {
+fn cmd_remove(args: RemoveArgs, opts: OutputOptions) -> Result<()> {
     // --forceがない場合は確認ダイアログを表示
     if !args.force {
         if !interactive::confirm_remove(&args.path)? {
-            println!("{}", "キャンセルされました".yellow());
+            if opts.should_print() {
+                println!("{}", "キャンセルされました".yellow());
+            }
             return Ok(());
         }
     }
 
-    println!("{}", "🗑️  worktreeを削除中...".blue());
-    println!("  パス: {}", args.path.display().to_string().cyan());
+    if opts.should_print() {
+        println!("{}", "🗑️  worktreeを削除中...".blue());
+        println!("  パス: {}", args.path.display().to_string().cyan());
+    }
 
     worktree::remove_worktree(&args.path, args.force)?;
 
-    println!("{}", "✓ worktreeを削除しました".green());
+    if opts.should_print() {
+        println!("{}", "✓ worktreeを削除しました".green());
+    }
 
     Ok(())
 }
 
 /// initサブコマンド
-fn cmd_init(args: InitArgs) -> Result<()> {
+fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
     let current_dir = std::env::current_dir()
         .context("カレントディレクトリの取得に失敗しました")?;
 
@@ -226,7 +326,9 @@ fn cmd_init(args: InitArgs) -> Result<()> {
     // --forceがない場合で既存ファイルがある場合は確認
     let force = if config_path.exists() && !args.force {
         if !interactive::confirm_overwrite(&config_path)? {
-            println!("{}", "キャンセルされました".yellow());
+            if opts.should_print() {
+                println!("{}", "キャンセルされました".yellow());
+            }
             return Ok(());
         }
         true // 確認済みなので強制上書き
@@ -234,21 +336,25 @@ fn cmd_init(args: InitArgs) -> Result<()> {
         args.force
     };
 
-    println!("{}", "📝 設定ファイルを作成中...".blue());
+    if opts.should_print() {
+        println!("{}", "📝 設定ファイルを作成中...".blue());
+    }
 
     let created_path = config::create_default_config(&current_dir, force)?;
 
-    println!(
-        "{} {}",
-        "✅ 設定ファイルを作成しました:".green(),
-        created_path.display().to_string().cyan()
-    );
+    if opts.should_print() {
+        println!(
+            "{} {}",
+            "✅ 設定ファイルを作成しました:".green(),
+            created_path.display().to_string().cyan()
+        );
+    }
 
     Ok(())
 }
 
 /// configサブコマンド
-fn cmd_config() -> Result<()> {
+fn cmd_config(opts: OutputOptions) -> Result<()> {
     let current_dir = std::env::current_dir()
         .context("カレントディレクトリの取得に失敗しました")?;
 
@@ -265,7 +371,16 @@ fn cmd_config() -> Result<()> {
 
             // バリデーション
             match config::load_config(&path) {
-                Ok(_) => println!("{}", "✅ 設定ファイルは有効です".green()),
+                Ok(cfg) => {
+                    println!("{}", "✅ 設定ファイルは有効です".green());
+                    if opts.should_print_verbose() {
+                        println!("\n{}", "詳細情報:".bright_black());
+                        println!("  バージョン: {}", cfg.version);
+                        println!("  コピー対象: {} パターン", cfg.copy.len());
+                        println!("  除外対象: {} パターン", cfg.exclude.len());
+                        println!("  post-createコマンド: {} 個", cfg.post_create.len());
+                    }
+                }
                 Err(e) => {
                     eprintln!("{}", "❌ 設定ファイルにエラーがあります:".red());
                     eprintln!("  {}", e);
@@ -273,8 +388,10 @@ fn cmd_config() -> Result<()> {
             }
         }
         None => {
-            println!("{}", "ℹ  設定ファイルが見つかりませんでした".blue());
-            println!("  'wtenv init' で設定ファイルを作成できます");
+            if opts.should_print() {
+                println!("{}", "ℹ  設定ファイルが見つかりませんでした".blue());
+                println!("  'wtenv init' で設定ファイルを作成できます");
+            }
         }
     }
 
