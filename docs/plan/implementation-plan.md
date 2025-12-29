@@ -22,7 +22,7 @@ git worktree管理CLIツール「wtenv」の段階的実装プラン。
 name = "wtenv"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.92.0"
 description = "Git worktree environment manager"
 license = "MIT"
 
