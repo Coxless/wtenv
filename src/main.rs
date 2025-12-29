@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod copy;
+mod interactive;
 mod worktree;
 
 use anyhow::{Context, Result};
@@ -32,8 +33,8 @@ enum Commands {
 
 #[derive(Args)]
 struct CreateArgs {
-    /// ブランチ名
-    branch: String,
+    /// ブランチ名（省略時は対話モード）
+    branch: Option<String>,
     /// worktreeパス（省略時: ../branch-name）
     path: Option<PathBuf>,
     /// ファイルコピーをスキップ
@@ -80,7 +81,7 @@ fn cmd_create(args: CreateArgs) -> Result<()> {
     println!("{}", "🌲 worktreeを作成中...".blue());
 
     // 1. メインworktree確認
-    let current_dir = std::env::current_dir()
+    let _current_dir = std::env::current_dir()
         .context("カレントディレクトリの取得に失敗しました")?;
     let repo_root = worktree::get_repo_root()?;
 
@@ -92,17 +93,36 @@ fn cmd_create(args: CreateArgs) -> Result<()> {
         config::load_config_or_default(&config_path)?
     };
 
-    // 3. worktreeパス決定
-    let worktree_path = args.path.unwrap_or_else(|| {
-        let parent = repo_root.parent().unwrap_or(&repo_root);
-        parent.join(&args.branch)
-    });
+    // 3. ブランチ名を取得（対話モード対応）
+    let is_interactive = args.branch.is_none();
+    let branch = match args.branch {
+        Some(b) => b,
+        None => interactive::prompt_branch_name()?,
+    };
 
-    // 4. worktree作成
-    println!("  ブランチ: {}", args.branch.cyan());
+    // 4. worktreeパス決定（対話モード対応）
+    let default_path = repo_root
+        .parent()
+        .unwrap_or(&repo_root)
+        .join(&branch);
+    let worktree_path = match args.path {
+        Some(p) => p,
+        None => {
+            // ブランチ名が引数で指定された場合はデフォルトパスを使用
+            // 対話モードの場合はパスも対話的に確認
+            if is_interactive {
+                interactive::prompt_worktree_path(&default_path.to_string_lossy())?
+            } else {
+                default_path
+            }
+        }
+    };
+
+    // 5. worktree作成
+    println!("  ブランチ: {}", branch.cyan());
     println!("  パス: {}", worktree_path.display().to_string().cyan());
 
-    worktree::create_worktree(&worktree_path, &args.branch)
+    worktree::create_worktree(&worktree_path, &branch)
         .context("worktreeの作成に失敗しました")?;
 
     println!("{}", "✓ worktreeを作成しました".green());
@@ -178,6 +198,14 @@ fn cmd_list() -> Result<()> {
 
 /// removeサブコマンド
 fn cmd_remove(args: RemoveArgs) -> Result<()> {
+    // --forceがない場合は確認ダイアログを表示
+    if !args.force {
+        if !interactive::confirm_remove(&args.path)? {
+            println!("{}", "キャンセルされました".yellow());
+            return Ok(());
+        }
+    }
+
     println!("{}", "🗑️  worktreeを削除中...".blue());
     println!("  パス: {}", args.path.display().to_string().cyan());
 
@@ -193,14 +221,27 @@ fn cmd_init(args: InitArgs) -> Result<()> {
     let current_dir = std::env::current_dir()
         .context("カレントディレクトリの取得に失敗しました")?;
 
+    let config_path = current_dir.join(".worktree.yml");
+
+    // --forceがない場合で既存ファイルがある場合は確認
+    let force = if config_path.exists() && !args.force {
+        if !interactive::confirm_overwrite(&config_path)? {
+            println!("{}", "キャンセルされました".yellow());
+            return Ok(());
+        }
+        true // 確認済みなので強制上書き
+    } else {
+        args.force
+    };
+
     println!("{}", "📝 設定ファイルを作成中...".blue());
 
-    let config_path = config::create_default_config(&current_dir, args.force)?;
+    let created_path = config::create_default_config(&current_dir, force)?;
 
     println!(
         "{} {}",
         "✅ 設定ファイルを作成しました:".green(),
-        config_path.display().to_string().cyan()
+        created_path.display().to_string().cyan()
     );
 
     Ok(())
