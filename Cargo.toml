@@ -2,7 +2,7 @@
 name = "wtenv"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74.0"
+rust-version = "1.92.0"
 description = "Git worktree environment manager"
 license = "MIT"
 repository = "https://github.com/USERNAME/wtenv"

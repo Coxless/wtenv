@@ -3,7 +3,7 @@
 ## Requirements
 
 - Git 2.5+ (for worktree support)
-- Rust 1.74+ (for building from source)
+- Rust 1.92+ (for building from source)
 
 ## Installation Methods
 
