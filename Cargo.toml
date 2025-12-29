@@ -5,6 +5,13 @@ edition = "2021"
 rust-version = "1.74.0"
 description = "Git worktree environment manager"
 license = "MIT"
+repository = "https://github.com/USERNAME/wtenv"
+homepage = "https://github.com/USERNAME/wtenv"
+documentation = "https://github.com/USERNAME/wtenv#readme"
+keywords = ["git", "worktree", "cli", "environment", "development"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
+authors = ["Your Name <your.email@example.com>"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
