@@ -9,35 +9,11 @@
 
 ### From Binary (Recommended)
 
-1. Download the appropriate binary from [Releases](https://github.com/Coxless/wtenv/releases)
-2. Extract and place in your PATH
-
-#### Linux
-
 ```bash
 curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-linux-x64 -o wtenv
 chmod +x wtenv
 sudo mv wtenv /usr/local/bin/
 ```
-
-#### macOS
-
-```bash
-# Intel Mac
-curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-macos-x64 -o wtenv
-
-# Apple Silicon Mac
-curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-macos-arm64 -o wtenv
-
-chmod +x wtenv
-sudo mv wtenv /usr/local/bin/
-```
-
-#### Windows
-
-1. Download `wtenv-windows-x64.exe` from Releases
-2. Rename to `wtenv.exe`
-3. Add to your PATH
 
 ### From Source
 
@@ -50,48 +26,10 @@ cd wtenv
 cargo install --path .
 ```
 
-### Using Cargo
-
-```bash
-cargo install wtenv
-```
-
 ## Verification
 
 ```bash
 wtenv --version
-```
-
-## Shell Completion (Optional)
-
-wtenv supports shell completion generation via clap.
-
-### Bash
-
-```bash
-# Add to ~/.bashrc
-eval "$(wtenv completions bash)"
-```
-
-### Zsh
-
-```bash
-# Add to ~/.zshrc
-eval "$(wtenv completions zsh)"
-```
-
-### Fish
-
-```bash
-# Add to ~/.config/fish/config.fish
-wtenv completions fish | source
-```
-
-### PowerShell
-
-```powershell
-# Add to your PowerShell profile
-Invoke-Expression (&wtenv completions powershell)
 ```
 
 ## Troubleshooting
@@ -132,10 +70,4 @@ Download the latest release and replace the existing binary.
 cd wtenv
 git pull
 cargo install --path . --force
-```
-
-### Cargo
-
-```bash
-cargo install wtenv --force
 ```
