@@ -110,6 +110,27 @@ wtenv status
 wtenv status --verbose
 ```
 
+**出力例:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees Overview (3 active, 2 processes)                  │
+├─────────────────────────────────────────────────────────────┤
+│ 🔄 feature-a                      main → feature-a          │
+│    Status: Modified (3 files)     Process: pnpm test        │
+│    Modified: 3 files  |  Last commit: 2h ago                │
+│                                                              │
+│ 🔨 feature-b                      main → feature-b          │
+│    Status: Running                Process: pnpm build       │
+│    Modified: 1 file   |  Last commit: 30m ago               │
+│                                                              │
+│ ✅ bugfix-123                     main → bugfix-123         │
+│    Status: Clean                  No process                │
+│    Last commit: 5m ago                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 📊 Total: 3 worktrees  |  Modified: 4 files                │
+└─────────────────────────────────────────────────────────────┘
+```
+
 #### `wtenv ps [FILTER]`
 
 worktreeで実行中のすべてのプロセスを一覧表示。
@@ -120,6 +141,19 @@ wtenv ps
 
 # worktree/ブランチ名でフィルタ
 wtenv ps feature-a
+```
+
+**出力例:**
+```
+Active Processes in Worktrees:
+
+feature-a (PID: 12345)
+  Command: pnpm test:e2e
+  Started: 9m 12s ago
+  Working Dir: /home/user/projects/myapp-feature-a
+  Status: Running
+
+Total: 1 process
 ```
 
 #### `wtenv kill [OPTIONS]`
