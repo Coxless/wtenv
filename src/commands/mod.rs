@@ -2,6 +2,7 @@ pub mod analyze;
 pub mod clean;
 pub mod diff_env;
 pub mod notify;
+pub mod pr;
 pub mod ps;
 pub mod status;
 pub mod ui;

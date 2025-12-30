@@ -55,6 +55,8 @@ enum Commands {
     Clean(CleanArgs),
     /// コマンド実行と通知
     Notify(NotifyArgs),
+    /// PRからworktreeを作成
+    Pr(PrArgs),
 }
 
 #[derive(Args)]
@@ -121,6 +123,14 @@ struct NotifyArgs {
     /// エラー時に通知
     #[arg(long, default_value = "true")]
     notify_error: bool,
+}
+
+#[derive(Args)]
+struct PrArgs {
+    /// PR番号
+    pr_number: u32,
+    /// worktreeのパス（省略時は自動生成）
+    path: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -195,6 +205,7 @@ fn main() -> Result<()> {
         Commands::Analyze(args) => cmd_analyze(args),
         Commands::Clean(args) => cmd_clean(args),
         Commands::Notify(args) => cmd_notify(args),
+        Commands::Pr(args) => cmd_pr(args, opts),
     }
 }
 
@@ -550,4 +561,9 @@ fn cmd_notify(args: NotifyArgs) -> Result<()> {
         args.notify_success,
         args.notify_error,
     )
+}
+
+/// prサブコマンド
+fn cmd_pr(args: PrArgs, opts: OutputOptions) -> Result<()> {
+    commands::pr::execute(args.pr_number, args.path, opts.should_print_verbose())
 }
