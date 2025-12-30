@@ -18,7 +18,12 @@ pub struct WorktreeDetail {
 
 impl WorktreeDetail {
     /// worktreeの詳細情報を取得
-    pub fn from_path(path: &Path, branch: Option<String>, commit: String, is_main: bool) -> Result<Self> {
+    pub fn from_path(
+        path: &Path,
+        branch: Option<String>,
+        commit: String,
+        is_main: bool,
+    ) -> Result<Self> {
         let modified_files = count_modified_files(path)?;
         let untracked_files = count_untracked_files(path)?;
         let last_commit_time = get_last_commit_time(path)?;
@@ -56,7 +61,10 @@ impl WorktreeDetail {
     /// 状態の説明を取得
     pub fn status_text(&self) -> String {
         if self.has_changes() {
-            format!("Modified ({} files)", self.modified_files + self.untracked_files)
+            format!(
+                "Modified ({} files)",
+                self.modified_files + self.untracked_files
+            )
         } else if self.ahead_commits > 0 {
             format!("Ahead: {} commits", self.ahead_commits)
         } else {
@@ -80,9 +88,7 @@ fn count_modified_files(path: &Path) -> Result<usize> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let count = stdout
         .lines()
-        .filter(|line| {
-            !line.is_empty() && !line.starts_with("??")
-        })
+        .filter(|line| !line.is_empty() && !line.starts_with("??"))
         .count();
 
     Ok(count)
@@ -101,10 +107,7 @@ fn count_untracked_files(path: &Path) -> Result<usize> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let count = stdout
-        .lines()
-        .filter(|line| line.starts_with("??"))
-        .count();
+    let count = stdout.lines().filter(|line| line.starts_with("??")).count();
 
     Ok(count)
 }
@@ -134,7 +137,11 @@ fn get_ahead_behind_commits(path: &Path, branch: &Option<String>) -> Result<(usi
 
     // upstreamブランチが存在するか確認
     let output = Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", &format!("{}@{{upstream}}", branch)])
+        .args([
+            "rev-parse",
+            "--abbrev-ref",
+            &format!("{}@{{upstream}}", branch),
+        ])
         .current_dir(path)
         .output()
         .context("git rev-parseの実行に失敗しました")?;

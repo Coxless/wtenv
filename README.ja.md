@@ -3,16 +3,23 @@
 > **Warning**
 > このツールは開発中であり、安定版ではありません。使用する際は慎重に行ってください。
 
-高速でユーザーフレンドリーなgit worktree管理CLIツール。
+高速でユーザーフレンドリーなgit worktree管理CLIツール。**並列開発のコントロールセンター**機能を搭載。
 
 ## 機能
 
+### コアworktree管理機能
 - ブランチ管理を含む簡単なworktree作成
 - 環境ファイルの自動コピー（設定ベース）
 - post-createコマンドの実行
 - 対話モード（引数なしで実行可能）
 - プログレス表示とカラー出力
 - 詳細/サイレント出力モード
+
+### **NEW: 並列開発コントロールセンター** 🚀
+- **リアルタイムworktree状態監視** - すべてのworktreeの状態を一目で確認
+- **プロセス管理** - 各worktreeで実行中のプロセスを追跡・管理
+- **プロセス制御** - PID、worktree、または一括でプロセスを停止
+- **永続的なプロセス追跡** - ターミナルセッションを超えてプロセス情報を保持
 
 ## インストール
 
@@ -89,7 +96,50 @@ postCreate:
 
 ## コマンド
 
-### `wtenv create [BRANCH] [PATH]`
+### 監視・制御コマンド
+
+#### `wtenv status`
+
+すべてのworktreeの詳細な状態とプロセス情報を表示。
+
+```bash
+# worktree概要を表示
+wtenv status
+
+# 詳細モード（フルパスを表示）
+wtenv status --verbose
+```
+
+#### `wtenv ps [FILTER]`
+
+worktreeで実行中のすべてのプロセスを一覧表示。
+
+```bash
+# すべてのプロセスを表示
+wtenv ps
+
+# worktree/ブランチ名でフィルタ
+wtenv ps feature-a
+```
+
+#### `wtenv kill [OPTIONS]`
+
+実行中のプロセスを停止。
+
+```bash
+# 特定のPIDを停止
+wtenv kill 12345
+
+# すべてのプロセスを停止
+wtenv kill --all
+
+# 特定のworktreeのプロセスを停止
+wtenv kill feature-a
+```
+
+### Worktree管理コマンド
+
+#### `wtenv create [BRANCH] [PATH]`
 
 新しいworktreeを作成。
 

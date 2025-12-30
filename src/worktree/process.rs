@@ -65,10 +65,7 @@ impl ProcessInfo {
             .context("killコマンドの実行に失敗しました")?;
 
         if !output.status.success() {
-            anyhow::bail!(
-                "プロセスの停止に失敗しました (PID: {})",
-                self.pid
-            );
+            anyhow::bail!("プロセスの停止に失敗しました (PID: {})", self.pid);
         }
         Ok(())
     }
@@ -82,10 +79,7 @@ impl ProcessInfo {
             .context("taskkillコマンドの実行に失敗しました")?;
 
         if !output.status.success() {
-            anyhow::bail!(
-                "プロセスの停止に失敗しました (PID: {})",
-                self.pid
-            );
+            anyhow::bail!("プロセスの停止に失敗しました (PID: {})", self.pid);
         }
         Ok(())
     }
@@ -112,11 +106,11 @@ impl ProcessManager {
             return Ok(Self::new());
         }
 
-        let content = fs::read_to_string(&path)
-            .context("プロセス情報ファイルの読み込みに失敗しました")?;
+        let content =
+            fs::read_to_string(&path).context("プロセス情報ファイルの読み込みに失敗しました")?;
 
-        let manager: ProcessManager = serde_json::from_str(&content)
-            .context("プロセス情報のパースに失敗しました")?;
+        let manager: ProcessManager =
+            serde_json::from_str(&content).context("プロセス情報のパースに失敗しました")?;
 
         Ok(manager)
     }
@@ -133,8 +127,7 @@ impl ProcessManager {
         let content = serde_json::to_string_pretty(self)
             .context("プロセス情報のシリアライズに失敗しました")?;
 
-        fs::write(&path, content)
-            .context("プロセス情報ファイルの書き込みに失敗しました")?;
+        fs::write(&path, content).context("プロセス情報ファイルの書き込みに失敗しました")?;
 
         Ok(())
     }

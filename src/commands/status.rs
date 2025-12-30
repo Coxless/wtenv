@@ -21,7 +21,8 @@ pub fn execute(verbose: bool) -> Result<()> {
     // 詳細情報を取得
     let mut details = Vec::new();
     for wt in &worktrees {
-        match WorktreeDetail::from_path(&wt.path, wt.branch.clone(), wt.commit.clone(), wt.is_main) {
+        match WorktreeDetail::from_path(&wt.path, wt.branch.clone(), wt.commit.clone(), wt.is_main)
+        {
             Ok(detail) => details.push(detail),
             Err(e) => {
                 eprintln!(
@@ -66,7 +67,8 @@ fn print_header(details: &[WorktreeDetail], process_manager: &ProcessManager) {
 fn print_footer(details: &[WorktreeDetail]) {
     println!("├─────────────────────────────────────────────────────────────┤");
 
-    let total_modified = details.iter()
+    let total_modified = details
+        .iter()
         .map(|d| d.modified_files + d.untracked_files)
         .sum::<usize>();
 
@@ -81,11 +83,7 @@ fn print_footer(details: &[WorktreeDetail]) {
 }
 
 /// worktreeの状態を表示
-fn print_worktree_status(
-    detail: &WorktreeDetail,
-    process_manager: &ProcessManager,
-    verbose: bool,
-) {
+fn print_worktree_status(detail: &WorktreeDetail, process_manager: &ProcessManager, verbose: bool) {
     let path = PathBuf::from(&detail.path);
     let branch_name = detail.branch.as_deref().unwrap_or("detached");
 
@@ -107,7 +105,11 @@ fn print_worktree_status(
         "│ {} {:<30} {}",
         emoji,
         branch_name.green(),
-        if detail.is_main { "(main)".bright_black() } else { "".bright_black() }
+        if detail.is_main {
+            "(main)".bright_black()
+        } else {
+            "".bright_black()
+        }
     );
 
     // 状態とプロセス情報
@@ -133,10 +135,7 @@ fn print_worktree_status(
 
     // パス表示
     if verbose {
-        println!(
-            "│    Path: {}",
-            path.display().to_string().cyan()
-        );
+        println!("│    Path: {}", path.display().to_string().cyan());
     }
 }
 

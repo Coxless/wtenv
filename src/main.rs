@@ -6,7 +6,6 @@ mod interactive;
 mod output;
 mod worktree;
 
-
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;

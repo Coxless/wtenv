@@ -108,11 +108,7 @@ pub fn kill(pid: Option<u32>, all: bool, worktree_filter: Option<String>) -> Res
 
         process_manager.save(&repo_root)?;
 
-        println!(
-            "\n{} {}個のプロセスを停止しました",
-            "✅".green(),
-            killed
-        );
+        println!("\n{} {}個のプロセスを停止しました", "✅".green(), killed);
         if failed > 0 {
             eprintln!(
                 "{} {}個のプロセスの停止に失敗しました",
@@ -134,10 +130,7 @@ pub fn kill(pid: Option<u32>, all: bool, worktree_filter: Option<String>) -> Res
             return Ok(());
         }
 
-        println!(
-            "{}個のプロセスを停止中...",
-            to_kill.len()
-        );
+        println!("{}個のプロセスを停止中...", to_kill.len());
 
         let mut killed = 0;
         for (pid, branch) in to_kill {
@@ -159,11 +152,7 @@ pub fn kill(pid: Option<u32>, all: bool, worktree_filter: Option<String>) -> Res
 
         process_manager.save(&repo_root)?;
 
-        println!(
-            "\n{} {}個のプロセスを停止しました",
-            "✅".green(),
-            killed
-        );
+        println!("\n{} {}個のプロセスを停止しました", "✅".green(), killed);
     } else if let Some(pid) = pid {
         // 特定のPIDをkill
         let running = process_manager.running_processes();
@@ -174,11 +163,7 @@ pub fn kill(pid: Option<u32>, all: bool, worktree_filter: Option<String>) -> Res
 
         let branch = proc_info.branch.clone();
 
-        println!(
-            "プロセスを停止中: PID {} ({})",
-            pid,
-            branch.green()
-        );
+        println!("プロセスを停止中: PID {} ({})", pid, branch.green());
 
         // プロセスを見つけてkill
         if let Some(proc) = process_manager.processes.iter().find(|p| p.pid == pid) {
