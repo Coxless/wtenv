@@ -27,6 +27,7 @@
 - tokio 1.x系（非同期ランタイム、full機能有効）
 - notify-rust 4.11系（デスクトップ通知）
 - dotenvy 0.15系（環境変数ファイル読込）
+- dirs 5.0系（ホームディレクトリ解決）
 
 ### ビルド設定
 ```toml
@@ -53,11 +54,12 @@ strip = true         # シンボル削除
 | `/src/commands/status.rs` | worktree状態表示コマンド | - |
 | `/src/commands/ps.rs` | プロセス一覧・停止コマンド | - |
 | `/src/commands/diff_env.rs` | 環境変数比較コマンド | - |
-| `/src/commands/ui.rs` | インタラクティブTUIコマンド | - |
+| `/src/commands/ui.rs` | インタラクティブTUIコマンド。Claude Code タスク進捗表示機能を含む | - |
 | `/src/commands/analyze.rs` | worktree分析コマンド | - |
 | `/src/commands/clean.rs` | クリーンアップコマンド | - |
-| `/src/commands/notify.rs` | デスクトップ通知コマンド | - |
+| `/src/commands/notify.rs` | デスクトップ通知コマンド。Claude Code タスク通知機能を含む | - |
 | `/src/commands/pr.rs` | GitHub PR連携コマンド | - |
+| `/src/commands/claude_task.rs` | Claude Code タスク進捗追跡。データ構造とJSONL読み込み | - |
 
 ### モジュール分割基準
 - **worktree/**: Git worktree操作に関する全ての機能
@@ -66,6 +68,7 @@ strip = true         # シンボル削除
   - **process.rs**: プロセス管理（追跡、永続化）
 - **commands/**: サブコマンド実装
   - **mod.rs**: post-create実行、共通機能
+  - **claude_task.rs**: Claude Code タスク進捗追跡（データ構造、JSONL読み込み、タスク管理）
   - 各サブコマンドごとに独立したモジュール
 - **copy.rs**: ファイルシステム操作（コピー・パターンマッチ・除外）
 - **config.rs**: 設定ファイル処理（検索・読込・初期化・バリデーション）
