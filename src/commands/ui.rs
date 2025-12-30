@@ -126,14 +126,10 @@ impl App {
         let repo_root = worktree::get_repo_root()?;
         self.process_manager = ProcessManager::load(&repo_root)?;
 
-        // Reload Claude Code task progress
-        self.task_manager = match TaskManager::load() {
-            Ok(tm) => tm,
-            Err(e) => {
-                eprintln!("⚠️  Failed to reload Claude Code task progress: {}", e);
-                TaskManager::default()
-            }
-        };
+        // Refresh Claude Code task progress (only reloads changed files)
+        if let Err(e) = self.task_manager.refresh() {
+            eprintln!("⚠️  Failed to refresh Claude Code task progress: {}", e);
+        }
 
         // 選択状態を維持
         if self.selected_index >= self.worktrees.len() {
