@@ -201,17 +201,23 @@ wtenv remove ../myapp-feature-auth
 wtenv remove ../myapp-feature-auth --force
 ```
 
-### マージ済みブランチのクリーンアップ（Phase 3で実装予定）
+### マージ済みブランチのクリーンアップ
 
 ```bash
-# マージ済みworktreeを対話的に削除
-# wtenv clean --interactive
+# ドライラン（削除候補を表示）
+wtenv clean --dry-run
 
-# マージ済みworktreeを自動削除
-# wtenv clean --merged
+# マージ済みworktreeのみ削除
+wtenv clean --merged-only
 
-# 30日以上古いworktreeを削除
-# wtenv clean --older-than 30d
+# 30日以上更新されていないworktreeを削除
+wtenv clean --stale-days 30
+
+# 確認なしで強制削除
+wtenv clean --force
+
+# マージ済みかつ30日以上古いworktreeを削除
+wtenv clean --merged-only --stale-days 30 --force
 ```
 
 ## トラブルシューティング
@@ -280,6 +286,70 @@ wtenv ps
 ```bash
 # 作業終了時
 wtenv kill --all
+```
+
+## 通知機能の活用
+
+### 長時間実行コマンドの通知
+
+時間がかかるコマンド（ビルド、テストなど）の完了を通知できます。
+
+```bash
+# ビルド完了時に通知
+wtenv notify "npm run build"
+
+# テスト完了時に通知
+wtenv notify "pnpm test:e2e"
+
+# 特定のworktreeでコマンドを実行して通知
+wtenv notify --dir ../myapp-feature-auth "npm test"
+
+# 成功時のみ通知
+wtenv notify --notify-error false "npm run deploy"
+```
+
+## GitHub PRからworktree作成
+
+GitHub PRから直接worktreeを作成できます（GitHub CLIが必要）。
+
+```bash
+# PR #123からworktreeを作成
+wtenv pr 123
+
+# カスタムパスを指定
+wtenv pr 456 ~/projects/custom-path
+
+# PRからworktreeを作成し、環境ファイルもコピーされ、post-createコマンドも実行される
+wtenv pr 789
+```
+
+**出力例:**
+```
+🔍 Fetching PR #123...
+✓ Found PR: Add user authentication feature
+  Branch: feature-user-auth
+  Owner: username
+  State: OPEN
+
+📥 Fetching PR branch...
+🌲 Creating worktree at /home/user/projects/myapp-feature-user-auth...
+✓ Worktree created: /home/user/projects/myapp-feature-user-auth
+
+📋 Copying environment files...
+✅ 3個のファイルをコピーしました
+
+📦 post-createコマンドを実行中...
+
+[1/2] Installing dependencies...
+  ✓ Installing dependencies... (12.34s)
+
+[2/2] Building packages...
+  ✓ Building packages... (8.56s)
+
+✨ post-createコマンドが完了しました
+
+✨ PR #123 worktree is ready!
+  cd /home/user/projects/myapp-feature-user-auth
 ```
 
 ## 高度な使用例

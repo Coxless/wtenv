@@ -12,12 +12,21 @@
 - clap 4.4系（CLI パーサー、derive機能使用）
 - serde 1.0系（シリアライゼーション）
 - serde_yaml 0.9系（YAML パース）
+- serde_json 1.0系（JSON パース、PR情報取得用）
 - toml 0.8系（TOML パース）
 - glob 0.3系（ファイルパターンマッチング）
 - colored 2.1系（カラー出力）
 - anyhow 1.0系（エラーハンドリング）
 - dialoguer 0.11系（対話モード）
 - indicatif 0.17系（プログレス表示）
+- chrono 0.4系（日時処理、serde機能有効）
+- sysinfo 0.32系（プロセス情報取得）
+- walkdir 2.5系（ディレクトリ走査）
+- ratatui 0.29系（TUI構築）
+- crossterm 0.28系（ターミナル制御）
+- tokio 1.x系（非同期ランタイム、full機能有効）
+- notify-rust 4.11系（デスクトップ通知）
+- dotenvy 0.15系（環境変数ファイル読込）
 
 ### ビルド設定
 ```toml
@@ -34,17 +43,34 @@ strip = true         # シンボル削除
 |------|------|----------|
 | `/src/main.rs` | エントリーポイント。CLIパーサー定義とサブコマンドのルーティング。clapのderive APIを使用してCLI構造を定義 | - |
 | `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAMLとTOML両対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
-| `/src/worktree.rs` | Git worktree操作のラッパー。`std::process::Command`でgitコマンドを実行 | 関数は動詞始まり（`create_`, `list_`, `remove_`） |
 | `/src/copy.rs` | ファイルコピー機能。globパターンマッチング、除外フィルター、ディレクトリ再帰作成 | 関数は動詞始まり |
-| `/src/commands.rs` | post-createコマンドの実行。進捗表示とエラーハンドリング | 関数は動詞始まり |
-| `/src/interactive.rs` | 対話モード。dialoguerを使用したユーザー入力受付 | 関数は`prompt_`で始まる |
+| `/src/output.rs` | 出力フォーマット機能。verbose/quiet制御 | - |
+| `/src/errors.rs` | エラーフォーマット機能 | - |
+| `/src/worktree/mod.rs` | Git worktree操作のラッパー。`std::process::Command`でgitコマンドを実行 | 関数は動詞始まり（`create_`, `list_`, `remove_`） |
+| `/src/worktree/info.rs` | Worktree詳細情報の取得（変更ファイル数、コミット状態など） | - |
+| `/src/worktree/process.rs` | Worktree内のプロセス管理。プロセス追跡と永続化 | - |
+| `/src/commands/mod.rs` | post-createコマンド実行機能。進捗表示とエラーハンドリング | - |
+| `/src/commands/status.rs` | worktree状態表示コマンド | - |
+| `/src/commands/ps.rs` | プロセス一覧・停止コマンド | - |
+| `/src/commands/diff_env.rs` | 環境変数比較コマンド | - |
+| `/src/commands/ui.rs` | インタラクティブTUIコマンド | - |
+| `/src/commands/analyze.rs` | worktree分析コマンド | - |
+| `/src/commands/clean.rs` | クリーンアップコマンド | - |
+| `/src/commands/notify.rs` | デスクトップ通知コマンド | - |
+| `/src/commands/pr.rs` | GitHub PR連携コマンド | - |
 
 ### モジュール分割基準
-- **worktree.rs**: Git操作に関する全ての機能（作成・一覧・削除・情報取得）
-- **copy.rs**: ファイルシステム操作に関する全ての機能（コピー・パターンマッチ・除外）
-- **commands.rs**: 外部コマンド実行に関する全ての機能（実行・進捗・エラー処理）
-- **config.rs**: 設定に関する全ての機能（検索・読込・初期化・バリデーション）
-- **interactive.rs**: ユーザー対話に関する全ての機能（入力・確認・選択）
+- **worktree/**: Git worktree操作に関する全ての機能
+  - **mod.rs**: 基本操作（作成・一覧・削除・情報取得）
+  - **info.rs**: 詳細情報取得（変更ファイル数、コミット状態など）
+  - **process.rs**: プロセス管理（追跡、永続化）
+- **commands/**: サブコマンド実装
+  - **mod.rs**: post-create実行、共通機能
+  - 各サブコマンドごとに独立したモジュール
+- **copy.rs**: ファイルシステム操作（コピー・パターンマッチ・除外）
+- **config.rs**: 設定ファイル処理（検索・読込・初期化・バリデーション）
+- **output.rs**: 出力制御（verbose/quiet）
+- **errors.rs**: エラーフォーマット
 
 ## コーディングルール
 
@@ -166,19 +192,29 @@ postCreate:
 ### サブコマンド構成
 ```
 wtenv
-├── create [branch] [path]  # worktree作成
-├── list                     # worktree一覧
-├── remove <path>            # worktree削除
-├── init                     # 設定ファイル初期化
-└── config                   # 設定表示
+├── create [branch] [path]         # worktree作成
+├── list                            # worktree一覧
+├── remove <path>                   # worktree削除
+├── init                            # 設定ファイル初期化
+├── config                          # 設定表示
+├── status                          # worktree状態の詳細
+├── ps [filter]                     # 実行中プロセス一覧
+├── kill [pid]                      # プロセスを停止
+├── diff-env [wt1] [wt2]           # 環境変数比較
+├── ui                              # インタラクティブTUI
+├── analyze                         # worktree分析
+├── clean                           # worktreeクリーンアップ
+├── notify <command>                # コマンド実行と通知
+└── pr <pr_number> [path]          # PRからworktree作成
 ```
 
 ### グローバルオプション
 - `-h, --help`: ヘルプ表示
 - `-V, --version`: バージョン表示
+- `-v, --verbose`: 詳細出力モード
+- `-q, --quiet`: サイレントモード（エラー以外の出力を抑制）
 
 ### createオプション
-- `-v, --verbose`: 詳細出力
 - `--no-copy`: ファイルコピーをスキップ
 - `--no-post-create`: post-createコマンドをスキップ
 - `-c, --config <PATH>`: 設定ファイルパス指定
@@ -188,6 +224,38 @@ wtenv
 
 ### initオプション
 - `-f, --force`: 既存設定を上書き
+
+### psオプション
+- `filter`: worktreeフィルタ（ブランチ名またはパス）
+
+### killオプション
+- `pid`: プロセスID
+- `--all`: 全プロセスを停止
+- `filter`: worktreeフィルタ（ブランチ名またはパス）
+
+### diff-envオプション
+- `worktree1`: 1つ目のworktree（ブランチ名またはパス）
+- `worktree2`: 2つ目のworktree（ブランチ名またはパス）
+- `--all`: 全worktreeの環境変数を比較
+
+### analyzeオプション
+- `-d, --detailed`: 詳細情報を表示
+
+### cleanオプション
+- `--dry-run`: ドライラン（実際には削除しない）
+- `--merged-only`: マージ済みブランチのみ削除
+- `--stale-days <N>`: 指定日数以上更新されていないworktreeを削除
+- `-f, --force`: 確認なしで削除
+
+### notifyオプション
+- `command`: 実行するコマンド（必須）
+- `-d, --dir <PATH>`: 作業ディレクトリ（デフォルト: カレントディレクトリ）
+- `--notify-success`: 成功時に通知（デフォルト: true）
+- `--notify-error`: エラー時に通知（デフォルト: true）
+
+### prオプション
+- `pr_number`: PR番号（必須）
+- `path`: worktreeのパス（省略時は自動生成）
 
 ## パフォーマンス目標
 
