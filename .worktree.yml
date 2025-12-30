@@ -1,0 +1,12 @@
+version: 1
+
+copy:
+  - .env
+  - .env.local
+
+exclude:
+  - .env.production
+
+postCreate:
+  - command: npm install
+    description: "依存関係をインストール中..."
