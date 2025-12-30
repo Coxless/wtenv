@@ -239,6 +239,55 @@ wtenv config
 wtenv config --verbose
 ```
 
+### `wtenv diff-env`
+
+worktree間の環境変数の違いを表示。
+
+```bash
+# 2つのworktree間の環境変数を比較
+wtenv diff-env feature-a feature-b
+
+# すべてのworktreeの環境変数を比較
+wtenv diff-env --all
+```
+
+**出力例:**
+```
+🔍 feature-a と feature-b の環境変数の違い:
+
+.env:
+  API_PORT:
+    - 3001
+    + 3002
+  DATABASE_URL:
+    - postgresql://localhost/auth_db
+    + postgresql://localhost/payment_db
+
+.env.local:
+  DEBUG (feature-aのみ)
+    - true
+```
+
+### `wtenv ui`
+
+インタラクティブなTUIでworktreeを管理。
+
+```bash
+# TUIを起動
+wtenv ui
+```
+
+**キー操作:**
+- `↑/↓` または `j/k`: worktree選択
+- `r`: 状態を更新
+- `q` または `Esc`: 終了
+
+**機能:**
+- すべてのworktreeを一覧表示
+- 選択したworktreeの詳細情報を表示
+- 実行中プロセス数をリアルタイム表示
+- キーボードナビゲーション
+
 ## グローバルオプション
 
 | オプション | 説明 |

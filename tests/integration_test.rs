@@ -70,3 +70,29 @@ fn test_config_command() {
     // 設定ファイルがあってもなくても、コマンド自体は成功するはず
     assert!(output.status.success());
 }
+
+/// diff-envコマンドが--allオプションで実行できるかテスト
+#[test]
+fn test_diff_env_all_command() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "diff-env", "--all"])
+        .output()
+        .expect("Failed to execute command");
+
+    // Gitリポジトリ内であれば成功するはず
+    assert!(output.status.success());
+}
+
+/// diff-envコマンドが引数不足でエラーを返すかテスト
+#[test]
+fn test_diff_env_insufficient_args() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "diff-env"])
+        .output()
+        .expect("Failed to execute command");
+
+    // 引数が不足している場合はエラーになるはず
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("2つのworktreeを指定するか") || stderr.contains("all"));
+}

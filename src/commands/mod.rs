@@ -1,5 +1,7 @@
+pub mod diff_env;
 pub mod ps;
 pub mod status;
+pub mod ui;
 
 // Re-export from commands.rs for backward compatibility
 use anyhow::{Context, Result};

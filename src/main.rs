@@ -45,6 +45,10 @@ enum Commands {
     Ps(PsArgs),
     /// プロセスを停止
     Kill(KillArgs),
+    /// worktree間の環境変数を比較
+    DiffEnv(DiffEnvArgs),
+    /// インタラクティブTUI
+    Ui,
 }
 
 #[derive(Args)]
@@ -62,6 +66,17 @@ struct KillArgs {
     all: bool,
     /// worktreeフィルタ（ブランチ名またはパス）
     filter: Option<String>,
+}
+
+#[derive(Args)]
+struct DiffEnvArgs {
+    /// 1つ目のworktree（ブランチ名またはパス）
+    worktree1: Option<String>,
+    /// 2つ目のworktree（ブランチ名またはパス）
+    worktree2: Option<String>,
+    /// 全worktreeの環境変数を比較
+    #[arg(long)]
+    all: bool,
 }
 
 #[derive(Args)]
@@ -131,6 +146,8 @@ fn main() -> Result<()> {
         Commands::Status => cmd_status(opts),
         Commands::Ps(args) => cmd_ps(args),
         Commands::Kill(args) => cmd_kill(args),
+        Commands::DiffEnv(args) => cmd_diff_env(args),
+        Commands::Ui => cmd_ui(),
     }
 }
 
@@ -441,4 +458,14 @@ fn cmd_ps(args: PsArgs) -> Result<()> {
 /// killサブコマンド
 fn cmd_kill(args: KillArgs) -> Result<()> {
     commands::ps::kill(args.pid, args.all, args.filter)
+}
+
+/// diff-envサブコマンド
+fn cmd_diff_env(args: DiffEnvArgs) -> Result<()> {
+    commands::diff_env::execute(args.worktree1, args.worktree2, args.all)
+}
+
+/// uiサブコマンド
+fn cmd_ui() -> Result<()> {
+    commands::ui::execute()
 }
