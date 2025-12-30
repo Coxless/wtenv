@@ -1,12 +1,18 @@
 version: 1
 
 copy:
-  - .env
-  - .env.local
+  - "**/.env"
+  - "**/.env.local"
 
 exclude:
-  - .env.production
+  - "**/.env.production"
 
 postCreate:
+  - command: mise trust && mise install
+    description: "Miseでツールをインストール中..."
+    
   - command: npm install
     description: "依存関係をインストール中..."
+
+  - command: echo "setup complete!"
+    description: "セットアップ完了メッセージ表示中..."
