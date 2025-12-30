@@ -14,12 +14,14 @@ use ratatui::{
 };
 use std::io;
 
+use crate::commands::claude_task::TaskManager;
 use crate::worktree::{self, info::WorktreeDetail, process::ProcessManager};
 
 /// アプリケーションの状態
 struct App {
     worktrees: Vec<WorktreeDetail>,
     process_manager: ProcessManager,
+    task_manager: TaskManager,
     selected_index: usize,
     list_state: ListState,
     should_quit: bool,
@@ -41,6 +43,9 @@ impl App {
         let repo_root = worktree::get_repo_root()?;
         let process_manager = ProcessManager::load(&repo_root)?;
 
+        // Load Claude Code task progress
+        let task_manager = TaskManager::load().unwrap_or_default();
+
         let mut list_state = ListState::default();
         if !worktrees.is_empty() {
             list_state.select(Some(0));
@@ -49,6 +54,7 @@ impl App {
         Ok(Self {
             worktrees,
             process_manager,
+            task_manager,
             selected_index: 0,
             list_state,
             should_quit: false,
@@ -112,6 +118,9 @@ impl App {
         self.worktrees = worktrees;
         let repo_root = worktree::get_repo_root()?;
         self.process_manager = ProcessManager::load(&repo_root)?;
+
+        // Reload Claude Code task progress
+        self.task_manager = TaskManager::load().unwrap_or_default();
 
         // 選択状態を維持
         if self.selected_index >= self.worktrees.len() {
@@ -191,10 +200,11 @@ fn ui(f: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3),
-            Constraint::Min(10),
-            Constraint::Length(8),
-            Constraint::Length(3),
+            Constraint::Length(3), // Header
+            Constraint::Min(8),    // Worktrees list
+            Constraint::Length(6), // Claude Code tasks
+            Constraint::Length(6), // Worktree details
+            Constraint::Length(3), // Footer
         ])
         .split(f.area());
 
@@ -245,6 +255,9 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     f.render_stateful_widget(list, chunks[1], &mut app.list_state);
 
+    // Claude Code tasks section
+    render_claude_tasks(f, app, chunks[2]);
+
     // 選択されたworktreeの詳細
     if let Some(selected) = app.get_selected_worktree() {
         let detail_lines = vec![
@@ -285,22 +298,90 @@ fn ui(f: &mut Frame, app: &mut App) {
                 .borders(Borders::ALL)
                 .title("Worktree Details"),
         );
-        f.render_widget(detail, chunks[2]);
+        f.render_widget(detail, chunks[3]);
     } else {
         let empty = Paragraph::new("No worktree selected")
             .block(Block::default().borders(Borders::ALL).title("Details"));
-        f.render_widget(empty, chunks[2]);
+        f.render_widget(empty, chunks[3]);
     }
 
     // プロセス情報
     let process_count = app.process_manager.running_processes().len();
+    let active_tasks = app.task_manager.active_tasks().len();
     let footer_text = format!(
-        "Total: {} worktrees | {} running processes",
+        "Total: {} worktrees | {} running processes | {} active Claude tasks",
         app.worktrees.len(),
-        process_count
+        process_count,
+        active_tasks
     );
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::ALL));
-    f.render_widget(footer, chunks[3]);
+    f.render_widget(footer, chunks[4]);
+}
+
+/// Render Claude Code tasks section
+fn render_claude_tasks(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    use crate::commands::claude_task::TaskStatus;
+
+    let tasks = app.task_manager.active_tasks();
+
+    if tasks.is_empty() {
+        let empty = Paragraph::new("No active Claude Code tasks")
+            .style(Style::default().fg(Color::DarkGray))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Claude Code Tasks"),
+            );
+        f.render_widget(empty, area);
+        return;
+    }
+
+    // Show up to 3 most recent active tasks
+    let display_tasks: Vec<_> = tasks.iter().take(3).collect();
+
+    let task_lines: Vec<Line> = display_tasks
+        .iter()
+        .map(|task| {
+            let status_emoji = task.status.emoji();
+            let status_text = match task.status {
+                TaskStatus::InProgress => "In Progress",
+                TaskStatus::WaitingUser => "⚠ Needs Response",
+                TaskStatus::Completed => "Completed",
+                TaskStatus::Error => "Error",
+            };
+
+            let color = match task.status {
+                TaskStatus::InProgress => Color::Blue,
+                TaskStatus::WaitingUser => Color::Yellow,
+                TaskStatus::Completed => Color::Green,
+                TaskStatus::Error => Color::Red,
+            };
+
+            // Extract worktree name from path
+            let wt_name = std::path::Path::new(&task.worktree_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown");
+
+            Line::from(vec![
+                Span::raw(format!("{} ", status_emoji)),
+                Span::styled(format!("{:15}", wt_name), Style::default().fg(Color::Cyan)),
+                Span::styled(format!(" {:<18}", status_text), Style::default().fg(color)),
+                Span::styled(
+                    format!(" {}", task.duration_string()),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ])
+        })
+        .collect();
+
+    let tasks_widget = Paragraph::new(task_lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Claude Code Tasks (Active)"),
+    );
+
+    f.render_widget(tasks_widget, area);
 }
