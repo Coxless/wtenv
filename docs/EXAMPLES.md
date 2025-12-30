@@ -175,8 +175,18 @@ echo "API_PORT=3001" >> .env.local
 cd ../myapp-feature-payment
 echo "API_PORT=3002" >> .env.local
 
-# 環境変数の違いを確認（Phase 2で実装予定）
-# wtenv diff-env feature-auth feature-payment
+# 環境変数の違いを確認
+wtenv diff-env feature-auth feature-payment
+```
+
+**出力例:**
+```
+🔍 feature-auth と feature-payment の環境変数の違い:
+
+.env.local:
+  API_PORT:
+    - 3001
+    + 3002
 ```
 
 ## クリーンアップ

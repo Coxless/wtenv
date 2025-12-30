@@ -239,6 +239,35 @@ wtenv config
 wtenv config --verbose
 ```
 
+### `wtenv diff-env`
+
+Display environment variable differences between worktrees.
+
+```bash
+# Compare environment variables between two worktrees
+wtenv diff-env feature-a feature-b
+
+# Compare environment variables across all worktrees
+wtenv diff-env --all
+```
+
+**Output example:**
+```
+🔍 Differences in environment variables between feature-a and feature-b:
+
+.env:
+  API_PORT:
+    - 3001
+    + 3002
+  DATABASE_URL:
+    - postgresql://localhost/auth_db
+    + postgresql://localhost/payment_db
+
+.env.local:
+  DEBUG (feature-a only)
+    - true
+```
+
 ## Global Options
 
 | Option | Description |
