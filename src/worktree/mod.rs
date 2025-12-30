@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// worktree情報
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WorktreeInfo {
     pub path: PathBuf,
     pub branch: Option<String>,

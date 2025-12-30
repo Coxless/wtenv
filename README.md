@@ -288,6 +288,72 @@ wtenv ui
 - Real-time process count display
 - Keyboard navigation
 
+### `wtenv analyze`
+
+Analyze worktree status, disk usage, and dependencies.
+
+```bash
+# Analyze worktrees
+wtenv analyze
+
+# Show detailed information
+wtenv analyze --detailed
+```
+
+**Output example:**
+```
+📊 Worktree Analysis
+
+  feature-auth
+    Disk: 12.45 MB
+    Last update: 2 days ago
+    Tags: node_modules, lockfile, build
+
+  feature-payment
+    Disk: 8.32 MB
+    Last update: Yesterday
+    Tags: node_modules, lockfile, merged
+
+Summary
+  Total worktrees: 3
+  Total disk usage: 35.12 MB
+  Merged branches: 1
+  Stale (>30 days): 0
+```
+
+### `wtenv clean`
+
+Clean up merged or stale worktrees.
+
+```bash
+# Dry run (show candidates)
+wtenv clean --dry-run
+
+# Remove only merged branches
+wtenv clean --merged-only
+
+# Remove worktrees not updated in 30 days
+wtenv clean --stale-days 30
+
+# Force removal without confirmation
+wtenv clean --force
+```
+
+### `wtenv notify`
+
+Execute commands with desktop notifications.
+
+```bash
+# Run build with notification
+wtenv notify "npm run build"
+
+# Run command in specific directory
+wtenv notify --dir ./worktrees/feature-a "npm test"
+
+# Notify only on success
+wtenv notify --notify-error false "npm run deploy"
+```
+
 ## Global Options
 
 | Option | Description |
