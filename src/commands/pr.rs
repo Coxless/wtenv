@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::config;
@@ -12,6 +12,7 @@ use crate::worktree;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PrInfo {
+    #[allow(dead_code)]
     pub number: u32,
     pub title: String,
     pub head_ref_name: String,
@@ -230,9 +231,9 @@ fn determine_worktree_path(custom_path: Option<PathBuf>, branch_name: &str) -> R
 }
 
 /// PRからworktreeを作成
-fn create_worktree_from_pr(branch_name: &str, path: &PathBuf) -> Result<()> {
+fn create_worktree_from_pr(branch_name: &str, path: &Path) -> Result<()> {
     let output = Command::new("git")
-        .args(["worktree", "add", path.to_str().unwrap(), branch_name])
+        .args(["worktree", "add", worktree::path_to_str(path)?, branch_name])
         .output()
         .context("Failed to create worktree")?;
 

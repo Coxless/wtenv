@@ -10,6 +10,7 @@ use std::time::Instant;
 pub enum NotifyType {
     Success,
     Error,
+    #[allow(dead_code)]
     Info,
 }
 
@@ -169,6 +170,7 @@ pub fn send_notification(opts: NotifyOptions) -> Result<()> {
 }
 
 /// ビルド完了通知
+#[allow(dead_code)]
 pub fn notify_build_complete(success: bool, duration_secs: f64) -> Result<()> {
     let opts = if success {
         NotifyOptions {
@@ -188,6 +190,7 @@ pub fn notify_build_complete(success: bool, duration_secs: f64) -> Result<()> {
 }
 
 /// テスト完了通知
+#[allow(dead_code)]
 pub fn notify_test_complete(success: bool, duration_secs: f64) -> Result<()> {
     let opts = if success {
         NotifyOptions {

@@ -25,6 +25,7 @@ pub struct ProcessManager {
 
 impl ProcessInfo {
     /// 新しいプロセス情報を作成
+    #[allow(dead_code)]
     pub fn new(
         worktree_path: impl Into<String>,
         branch: impl Into<String>,
@@ -133,6 +134,7 @@ impl ProcessManager {
     }
 
     /// プロセスを追加
+    #[allow(dead_code)]
     pub fn add_process(&mut self, process: ProcessInfo) {
         self.processes.push(process);
     }
@@ -145,6 +147,7 @@ impl ProcessManager {
     }
 
     /// worktreeのプロセスを削除
+    #[allow(dead_code)]
     pub fn remove_worktree_processes(&mut self, worktree_path: &str) {
         self.processes.retain(|p| p.worktree_path != worktree_path);
     }

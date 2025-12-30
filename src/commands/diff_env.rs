@@ -159,20 +159,20 @@ fn print_env_diff(path1: &Path, path2: &Path, name1: &str, name2: &str) -> Resul
 
         println!("{}:", file_pattern.bright_black());
 
-        if file1.is_none() {
-            println!("  {} にのみ存在", name2.cyan());
-            has_diff = true;
-            continue;
-        }
-
-        if file2.is_none() {
-            println!("  {} にのみ存在", name1.cyan());
-            has_diff = true;
-            continue;
-        }
-
-        let vars1 = &file1.unwrap().variables;
-        let vars2 = &file2.unwrap().variables;
+        let (vars1, vars2) = match (&file1, &file2) {
+            (Some(f1), Some(f2)) => (&f1.variables, &f2.variables),
+            (None, Some(_)) => {
+                println!("  {} にのみ存在", name2.cyan());
+                has_diff = true;
+                continue;
+            }
+            (Some(_), None) => {
+                println!("  {} にのみ存在", name1.cyan());
+                has_diff = true;
+                continue;
+            }
+            (None, None) => unreachable!(), // Already handled above
+        };
 
         // 全てのキーを収集
         let mut all_keys: Vec<_> = vars1.keys().chain(vars2.keys()).collect();
@@ -238,11 +238,9 @@ fn print_all_env_comparison(worktrees: &[worktree::WorktreeInfo]) -> Result<()> 
             let file_name = env_file.path.to_str().unwrap_or("unknown");
 
             for (key, value) in &env_file.variables {
-                let file_map = all_keys
-                    .entry(file_name.to_string())
-                    .or_insert_with(HashMap::new);
+                let file_map = all_keys.entry(file_name.to_string()).or_default();
 
-                let key_entry = file_map.entry(key.clone()).or_insert_with(HashMap::new);
+                let key_entry = file_map.entry(key.clone()).or_default();
 
                 key_entry.insert(wt_name.to_string(), Some(value.clone()));
             }

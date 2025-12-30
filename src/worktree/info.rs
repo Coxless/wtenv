@@ -7,12 +7,14 @@ use std::process::Command;
 pub struct WorktreeDetail {
     pub path: String,
     pub branch: Option<String>,
+    #[allow(dead_code)]
     pub commit: String,
     pub is_main: bool,
     pub modified_files: usize,
     pub untracked_files: usize,
     pub last_commit_time: String,
     pub ahead_commits: usize,
+    #[allow(dead_code)]
     pub behind_commits: usize,
 }
 
@@ -153,7 +155,7 @@ fn get_ahead_behind_commits(path: &Path, branch: &Option<String>) -> Result<(usi
 
     // ahead commits
     let ahead_output = Command::new("git")
-        .args(["rev-list", "--count", &format!("@{{upstream}}..HEAD")])
+        .args(["rev-list", "--count", "@{upstream}..HEAD"])
         .current_dir(path)
         .output()
         .context("git rev-listの実行に失敗しました")?;

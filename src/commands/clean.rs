@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::Colorize;
 use std::path::Path;
 
-use crate::commands::analyze::AnalysisInfo;
+use crate::commands::analyze::{AnalysisInfo, STALE_DAYS_THRESHOLD};
 use crate::worktree;
 
 /// cleanオプション
@@ -23,7 +23,7 @@ pub fn execute(opts: CleanOptions) -> Result<()> {
     }
 
     // mainブランチ名を取得
-    let main_branch = get_main_branch_name().unwrap_or_else(|_| "main".to_string());
+    let main_branch = worktree::get_main_branch_name().unwrap_or_else(|_| "main".to_string());
 
     println!(
         "{}",
@@ -70,9 +70,9 @@ pub fn execute(opts: CleanOptions) -> Result<()> {
                 should_clean = true;
                 reason.push("merged to main".green());
             }
-            if analysis.days_since_update.unwrap_or(0) > 30 {
+            if analysis.days_since_update.unwrap_or(0) > STALE_DAYS_THRESHOLD {
                 should_clean = true;
-                reason.push("stale (>30 days)".red());
+                reason.push(format!("stale (>{} days)", STALE_DAYS_THRESHOLD).red());
             }
         }
 
@@ -177,7 +177,12 @@ pub fn execute(opts: CleanOptions) -> Result<()> {
 /// worktreeを削除
 fn remove_worktree(path: &Path) -> Result<()> {
     let output = std::process::Command::new("git")
-        .args(["worktree", "remove", path.to_str().unwrap(), "--force"])
+        .args([
+            "worktree",
+            "remove",
+            worktree::path_to_str(path)?,
+            "--force",
+        ])
         .output()?;
 
     if !output.status.success() {
@@ -186,22 +191,6 @@ fn remove_worktree(path: &Path) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// mainブランチ名を取得
-fn get_main_branch_name() -> Result<String> {
-    let output = std::process::Command::new("git")
-        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
-        .output()?;
-
-    if output.status.success() {
-        let full_ref = String::from_utf8_lossy(&output.stdout);
-        if let Some(branch) = full_ref.trim().strip_prefix("refs/remotes/origin/") {
-            return Ok(branch.to_string());
-        }
-    }
-
-    Ok("main".to_string())
 }
 
 #[cfg(test)]
