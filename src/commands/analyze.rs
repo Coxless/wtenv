@@ -4,7 +4,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use crate::output;
 use crate::worktree;
+
+/// Time constants
+pub const SECONDS_PER_DAY: u64 = 86400;
+pub const DAYS_PER_WEEK: u64 = 7;
+pub const DAYS_PER_MONTH: u64 = 30;
+pub const STALE_DAYS_THRESHOLD: u64 = 30;
 
 /// worktreeの分析情報
 #[derive(Debug)]
@@ -44,7 +51,7 @@ impl AnalysisInfo {
             SystemTime::now()
                 .duration_since(lm)
                 .ok()
-                .map(|d| d.as_secs() / 86400)
+                .map(|d| d.as_secs() / SECONDS_PER_DAY)
         });
 
         Ok(Self {
@@ -62,7 +69,7 @@ impl AnalysisInfo {
 
     /// ディスク使用量を人間が読みやすい形式で返す
     pub fn disk_usage_human(&self) -> String {
-        format_size(self.disk_usage)
+        output::format_size(self.disk_usage)
     }
 
     /// 最終更新日時を人間が読みやすい形式で返す
@@ -70,9 +77,11 @@ impl AnalysisInfo {
         match self.days_since_update {
             Some(0) => "Today".to_string(),
             Some(1) => "Yesterday".to_string(),
-            Some(days) if days < 7 => format!("{} days ago", days),
-            Some(days) if days < 30 => format!("{} weeks ago", days / 7),
-            Some(days) => format!("{} months ago", days / 30),
+            Some(days) if days < DAYS_PER_WEEK => format!("{} days ago", days),
+            Some(days) if days < DAYS_PER_MONTH => {
+                format!("{} weeks ago", days / DAYS_PER_WEEK)
+            }
+            Some(days) => format!("{} months ago", days / DAYS_PER_MONTH),
             None => "Unknown".to_string(),
         }
     }
@@ -148,23 +157,6 @@ fn check_if_merged(branch: &str, main_branch: &str) -> Result<bool> {
     }
 }
 
-/// サイズを人間が読みやすい形式にフォーマット
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-
-    if bytes >= GB {
-        format!("{:.2} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.2} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.2} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{} B", bytes)
-    }
-}
-
 /// analyzeコマンドの実行
 pub fn execute(detailed: bool) -> Result<()> {
     let worktrees = worktree::list_worktrees()?;
@@ -191,7 +183,7 @@ pub fn execute(detailed: bool) -> Result<()> {
         if analysis.is_merged {
             merged_count += 1;
         }
-        if analysis.days_since_update.unwrap_or(0) > 30 {
+        if analysis.days_since_update.unwrap_or(0) > STALE_DAYS_THRESHOLD {
             stale_count += 1;
         }
 
@@ -218,9 +210,10 @@ pub fn execute(detailed: bool) -> Result<()> {
 
         // 最終更新
         let last_update = analysis.last_modified_human();
-        let last_update_colored = if analysis.days_since_update.unwrap_or(0) > 30 {
+        let last_update_colored = if analysis.days_since_update.unwrap_or(0) > STALE_DAYS_THRESHOLD
+        {
             last_update.red()
-        } else if analysis.days_since_update.unwrap_or(0) > 7 {
+        } else if analysis.days_since_update.unwrap_or(0) > DAYS_PER_WEEK {
             last_update.yellow()
         } else {
             last_update.green()
@@ -262,28 +255,13 @@ pub fn execute(detailed: bool) -> Result<()> {
         "  Total worktrees: {}",
         worktrees.len().to_string().yellow()
     );
-    println!("  Total disk usage: {}", format_size(total_size).yellow());
+    println!("  Total disk usage: {}", output::format_size(total_size).yellow());
     println!("  Merged branches: {}", merged_count.to_string().green());
-    println!("  Stale (>30 days): {}", stale_count.to_string().red());
+    println!(
+        "  Stale (>{} days): {}",
+        STALE_DAYS_THRESHOLD,
+        stale_count.to_string().red()
+    );
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_format_size() {
-        assert_eq!(format_size(500), "500 B");
-        assert_eq!(format_size(1024), "1.00 KB");
-        assert_eq!(format_size(1024 * 1024), "1.00 MB");
-        assert_eq!(format_size(1024 * 1024 * 1024), "1.00 GB");
-    }
-
-    #[test]
-    fn test_format_size_decimal() {
-        assert_eq!(format_size(1536), "1.50 KB");
-        assert_eq!(format_size(1024 * 1024 + 512 * 1024), "1.50 MB");
-    }
 }

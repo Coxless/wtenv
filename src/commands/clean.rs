@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::Colorize;
 use std::path::Path;
 
-use crate::commands::analyze::AnalysisInfo;
+use crate::commands::analyze::{AnalysisInfo, STALE_DAYS_THRESHOLD};
 use crate::worktree;
 
 /// cleanオプション
@@ -70,9 +70,9 @@ pub fn execute(opts: CleanOptions) -> Result<()> {
                 should_clean = true;
                 reason.push("merged to main".green());
             }
-            if analysis.days_since_update.unwrap_or(0) > 30 {
+            if analysis.days_since_update.unwrap_or(0) > STALE_DAYS_THRESHOLD {
                 should_clean = true;
-                reason.push("stale (>30 days)".red());
+                reason.push(format!("stale (>{} days)", STALE_DAYS_THRESHOLD).red());
             }
         }
 
