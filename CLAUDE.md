@@ -6,14 +6,13 @@
 
 ### 利用言語
 - Rust 2021 edition
-- 最小サポートバージョン: 1.92.0
+- 最小サポートバージョン: 1.91.0
 
 ### 利用ライブラリ
 - clap 4.4系（CLI パーサー、derive機能使用）
 - serde 1.0系（シリアライゼーション）
 - serde_yaml 0.9系（YAML パース）
 - serde_json 1.0系（JSON パース、PR情報取得用）
-- toml 0.8系（TOML パース）
 - glob 0.3系（ファイルパターンマッチング）
 - colored 2.1系（カラー出力）
 - anyhow 1.0系（エラーハンドリング）
@@ -43,7 +42,7 @@ strip = true         # シンボル削除
 | Path | 用途 | 命名規則 |
 |------|------|----------|
 | `/src/main.rs` | エントリーポイント。CLIパーサー定義とサブコマンドのルーティング。clapのderive APIを使用してCLI構造を定義 | - |
-| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAMLとTOML両対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
+| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAML対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
 | `/src/copy.rs` | ファイルコピー機能。globパターンマッチング、除外フィルター、ディレクトリ再帰作成 | 関数は動詞始まり |
 | `/src/output.rs` | 出力フォーマット機能。verbose/quiet制御 | - |
 | `/src/errors.rs` | エラーフォーマット機能 | - |
@@ -132,7 +131,7 @@ if !output.status.success() {
 - シンボリックリンクは通常のファイルとしてコピー
 
 ### 設定ファイル
-- 検索順: `.worktree.yml` → `.worktree.yaml` → `.worktree.toml` → `worktree.config.yml` → `worktree.config.toml`
+- 検索順: `.worktree.yml` → `.worktree.yaml`
 - 見つからない場合はデフォルト設定を使用（エラーにしない）
 - バージョンフィールドは必須。現在は`version: 1`のみサポート
 - 不明なフィールドは無視（将来の拡張性のため）
