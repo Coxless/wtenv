@@ -117,7 +117,7 @@ fn calculate_dir_size(path: &Path) -> Result<u64> {
 /// ディレクトリ内の最終更新日時を取得
 fn get_last_modified(path: &Path) -> Result<Option<SystemTime>> {
     let output = std::process::Command::new("git")
-        .args(["-C", path.to_str().unwrap(), "log", "-1", "--format=%ct"])
+        .args(["-C", worktree::path_to_str(path)?, "log", "-1", "--format=%ct"])
         .output()?;
 
     if output.status.success() {
@@ -175,7 +175,7 @@ pub fn execute(detailed: bool) -> Result<()> {
     }
 
     // mainブランチ名を取得
-    let main_branch = get_main_branch_name().unwrap_or_else(|_| "main".to_string());
+    let main_branch = worktree::get_main_branch_name().unwrap_or_else(|_| "main".to_string());
 
     println!("{}", "📊 Worktree Analysis".cyan().bold());
     println!();
@@ -267,23 +267,6 @@ pub fn execute(detailed: bool) -> Result<()> {
     println!("  Stale (>30 days): {}", stale_count.to_string().red());
 
     Ok(())
-}
-
-/// mainブランチ名を取得
-fn get_main_branch_name() -> Result<String> {
-    let output = std::process::Command::new("git")
-        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
-        .output()?;
-
-    if output.status.success() {
-        let full_ref = String::from_utf8_lossy(&output.stdout);
-        if let Some(branch) = full_ref.trim().strip_prefix("refs/remotes/origin/") {
-            return Ok(branch.to_string());
-        }
-    }
-
-    // フォールバック: mainまたはmaster
-    Ok("main".to_string())
 }
 
 #[cfg(test)]

@@ -232,7 +232,7 @@ fn determine_worktree_path(custom_path: Option<PathBuf>, branch_name: &str) -> R
 /// PRからworktreeを作成
 fn create_worktree_from_pr(branch_name: &str, path: &PathBuf) -> Result<()> {
     let output = Command::new("git")
-        .args(["worktree", "add", path.to_str().unwrap(), branch_name])
+        .args(["worktree", "add", worktree::path_to_str(path)?, branch_name])
         .output()
         .context("Failed to create worktree")?;
 
