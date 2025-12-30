@@ -1,5 +1,8 @@
 # wtenv - Git Worktree Environment Manager
 
+> **Warning**
+> This tool is under development and not stable. Please use with caution.
+
 Fast and user-friendly git worktree management CLI tool.
 
 ## Features
