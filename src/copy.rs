@@ -34,10 +34,7 @@ pub fn expand_patterns(base_dir: &Path, patterns: &[String]) -> Result<Vec<PathB
                             }
                         }
                         Err(e) => {
-                            eprintln!(
-                                "{}",
-                                format!("⚠️  パターンマッチエラー: {}", e).yellow()
-                            );
+                            eprintln!("{}", format!("⚠️  パターンマッチエラー: {}", e).yellow());
                         }
                     }
                 }
@@ -92,11 +89,7 @@ pub fn filter_excluded(files: Vec<PathBuf>, excludes: &[String]) -> Vec<PathBuf>
 }
 
 /// ファイルをコピー（個別エラーでも続行）
-pub fn copy_files(
-    files: &[PathBuf],
-    source_dir: &Path,
-    dest_dir: &Path,
-) -> Result<CopyResult> {
+pub fn copy_files(files: &[PathBuf], source_dir: &Path, dest_dir: &Path) -> Result<CopyResult> {
     let mut result = CopyResult {
         copied: Vec::new(),
         failed: Vec::new(),
@@ -111,10 +104,9 @@ pub fn copy_files(
                 match file.file_name() {
                     Some(name) => Path::new(name),
                     None => {
-                        result.failed.push((
-                            file.clone(),
-                            "ファイル名を取得できません".to_string(),
-                        ));
+                        result
+                            .failed
+                            .push((file.clone(), "ファイル名を取得できません".to_string()));
                         continue;
                     }
                 }
@@ -126,10 +118,9 @@ pub fn copy_files(
         // 親ディレクトリを作成
         if let Some(parent) = dest_file.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
-                result.failed.push((
-                    file.clone(),
-                    format!("ディレクトリ作成失敗: {}", e),
-                ));
+                result
+                    .failed
+                    .push((file.clone(), format!("ディレクトリ作成失敗: {}", e)));
                 continue;
             }
         }
@@ -141,16 +132,10 @@ pub fn copy_files(
                 println!("  {} {}", "✓".green(), relative_path.display());
             }
             Err(e) => {
-                result.failed.push((
-                    file.clone(),
-                    format!("コピー失敗: {}", e),
-                ));
-                eprintln!(
-                    "  {} {}: {}",
-                    "✗".red(),
-                    relative_path.display(),
-                    e
-                );
+                result
+                    .failed
+                    .push((file.clone(), format!("コピー失敗: {}", e)));
+                eprintln!("  {} {}: {}", "✗".red(), relative_path.display(), e);
             }
         }
     }
@@ -176,7 +161,9 @@ mod tests {
         let filtered = filter_excluded(files, &excludes);
 
         assert_eq!(filtered.len(), 2);
-        assert!(filtered.iter().all(|p| !p.to_string_lossy().contains(".env.production")));
+        assert!(filtered
+            .iter()
+            .all(|p| !p.to_string_lossy().contains(".env.production")));
     }
 
     #[test]

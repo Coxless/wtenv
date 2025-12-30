@@ -95,8 +95,12 @@ pub fn create_default_config(dir: &Path, force: bool) -> Result<PathBuf> {
         );
     }
 
-    fs::write(&config_path, DEFAULT_CONFIG_TEMPLATE)
-        .with_context(|| format!("設定ファイルの作成に失敗しました: {}", config_path.display()))?;
+    fs::write(&config_path, DEFAULT_CONFIG_TEMPLATE).with_context(|| {
+        format!(
+            "設定ファイルの作成に失敗しました: {}",
+            config_path.display()
+        )
+    })?;
 
     Ok(config_path)
 }

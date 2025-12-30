@@ -98,10 +98,7 @@ pub fn run_with_spinner(
 }
 
 /// post-createコマンドを順次実行
-pub fn run_post_create_commands(
-    commands: &[PostCreateCommand],
-    working_dir: &Path,
-) -> Result<()> {
+pub fn run_post_create_commands(commands: &[PostCreateCommand], working_dir: &Path) -> Result<()> {
     if commands.is_empty() {
         return Ok(());
     }
@@ -163,12 +160,7 @@ mod tests {
 
     #[test]
     fn test_run_command_failure() {
-        let result = run_command(
-            "exit 1",
-            &env::current_dir().unwrap(),
-            None,
-        )
-        .unwrap();
+        let result = run_command("exit 1", &env::current_dir().unwrap(), None).unwrap();
         assert!(!result.success);
     }
 }

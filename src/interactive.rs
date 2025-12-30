@@ -39,7 +39,10 @@ pub fn confirm_remove(path: &std::path::Path) -> Result<bool> {
 /// 上書き確認
 pub fn confirm_overwrite(path: &std::path::Path) -> Result<bool> {
     let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!("既存のファイルを上書きしますか？: {}", path.display()))
+        .with_prompt(format!(
+            "既存のファイルを上書きしますか？: {}",
+            path.display()
+        ))
         .default(false)
         .interact()?;
 

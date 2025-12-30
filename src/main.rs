@@ -115,12 +115,16 @@ fn cmd_create(args: CreateArgs, opts: OutputOptions) -> Result<()> {
     }
 
     // 1. メインworktree確認
-    let _current_dir = std::env::current_dir()
-        .context("カレントディレクトリの取得に失敗しました")?;
+    let _current_dir =
+        std::env::current_dir().context("カレントディレクトリの取得に失敗しました")?;
     let repo_root = worktree::get_repo_root()?;
 
     if opts.should_print_verbose() {
-        println!("  {} リポジトリルート: {}", "→".bright_black(), repo_root.display());
+        println!(
+            "  {} リポジトリルート: {}",
+            "→".bright_black(),
+            repo_root.display()
+        );
     }
 
     // 2. 設定ファイル読み込み
@@ -139,10 +143,7 @@ fn cmd_create(args: CreateArgs, opts: OutputOptions) -> Result<()> {
     };
 
     // 4. worktreeパス決定（対話モード対応）
-    let default_path = repo_root
-        .parent()
-        .unwrap_or(&repo_root)
-        .join(&branch);
+    let default_path = repo_root.parent().unwrap_or(&repo_root).join(&branch);
     let worktree_path = match args.path {
         Some(p) => p,
         None => {
@@ -162,8 +163,7 @@ fn cmd_create(args: CreateArgs, opts: OutputOptions) -> Result<()> {
         println!("  パス: {}", worktree_path.display().to_string().cyan());
     }
 
-    worktree::create_worktree(&worktree_path, &branch)
-        .context("worktreeの作成に失敗しました")?;
+    worktree::create_worktree(&worktree_path, &branch).context("worktreeの作成に失敗しました")?;
 
     if opts.should_print() {
         println!("{}", "✓ worktreeを作成しました".green());
@@ -239,8 +239,14 @@ fn cmd_create(args: CreateArgs, opts: OutputOptions) -> Result<()> {
     }
 
     if opts.should_print() {
-        println!("\n{}", "✨ worktreeのセットアップが完了しました!".green().bold());
-        println!("  移動するには: {}", format!("cd {}", worktree_path.display()).cyan());
+        println!(
+            "\n{}",
+            "✨ worktreeのセットアップが完了しました!".green().bold()
+        );
+        println!(
+            "  移動するには: {}",
+            format!("cd {}", worktree_path.display()).cyan()
+        );
     }
 
     Ok(())
@@ -318,8 +324,8 @@ fn cmd_remove(args: RemoveArgs, opts: OutputOptions) -> Result<()> {
 
 /// initサブコマンド
 fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
-    let current_dir = std::env::current_dir()
-        .context("カレントディレクトリの取得に失敗しました")?;
+    let current_dir =
+        std::env::current_dir().context("カレントディレクトリの取得に失敗しました")?;
 
     let config_path = current_dir.join(".worktree.yml");
 
@@ -355,8 +361,8 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
 
 /// configサブコマンド
 fn cmd_config(opts: OutputOptions) -> Result<()> {
-    let current_dir = std::env::current_dir()
-        .context("カレントディレクトリの取得に失敗しました")?;
+    let current_dir =
+        std::env::current_dir().context("カレントディレクトリの取得に失敗しました")?;
 
     match config::find_config_file(&current_dir) {
         Some(path) => {
@@ -364,8 +370,8 @@ fn cmd_config(opts: OutputOptions) -> Result<()> {
             println!("  パス: {}", path.display().to_string().cyan());
             println!();
 
-            let content = std::fs::read_to_string(&path)
-                .context("設定ファイルの読み込みに失敗しました")?;
+            let content =
+                std::fs::read_to_string(&path).context("設定ファイルの読み込みに失敗しました")?;
 
             println!("{}", content);
 

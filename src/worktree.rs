@@ -28,9 +28,7 @@ pub fn get_repo_root() -> Result<PathBuf> {
         );
     }
 
-    let path = String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .to_string();
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
     Ok(PathBuf::from(path))
 }
 
@@ -61,8 +59,7 @@ pub fn get_main_worktree() -> Result<PathBuf> {
 
 /// 現在のディレクトリがメインworktreeかどうか
 pub fn is_main_worktree() -> Result<bool> {
-    let current = std::env::current_dir()
-        .context("カレントディレクトリの取得に失敗しました")?;
+    let current = std::env::current_dir().context("カレントディレクトリの取得に失敗しました")?;
     let main_worktree = get_main_worktree()?;
 
     Ok(current == main_worktree)
@@ -90,9 +87,7 @@ pub fn get_current_branch() -> Result<String> {
         anyhow::bail!("現在のブランチの取得に失敗しました: {}", stderr.trim());
     }
 
-    let branch = String::from_utf8_lossy(&output.stdout)
-        .trim()
-        .to_string();
+    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
     if branch.is_empty() {
         anyhow::bail!("ブランチ名を取得できませんでした（detached HEADの可能性があります）");
@@ -120,7 +115,8 @@ pub fn create_worktree(path: &Path, branch: &str) -> Result<()> {
         cmd.arg(branch);
     }
 
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .context("git worktree addの実行に失敗しました")?;
 
     if !output.status.success() {
@@ -211,7 +207,8 @@ pub fn remove_worktree(path: &Path, force: bool) -> Result<()> {
 
     cmd.arg(path);
 
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .context("git worktree removeの実行に失敗しました")?;
 
     if !output.status.success() {
