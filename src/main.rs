@@ -49,6 +49,12 @@ enum Commands {
     DiffEnv(DiffEnvArgs),
     /// インタラクティブTUI
     Ui,
+    /// worktreeの分析
+    Analyze(AnalyzeArgs),
+    /// 不要なworktreeをクリーンアップ
+    Clean(CleanArgs),
+    /// コマンド実行と通知
+    Notify(NotifyArgs),
 }
 
 #[derive(Args)]
@@ -77,6 +83,44 @@ struct DiffEnvArgs {
     /// 全worktreeの環境変数を比較
     #[arg(long)]
     all: bool,
+}
+
+#[derive(Args)]
+struct AnalyzeArgs {
+    /// 詳細情報を表示
+    #[arg(short, long)]
+    detailed: bool,
+}
+
+#[derive(Args)]
+struct CleanArgs {
+    /// ドライラン（実際には削除しない）
+    #[arg(long)]
+    dry_run: bool,
+    /// マージ済みブランチのみ削除
+    #[arg(long)]
+    merged_only: bool,
+    /// 指定日数以上更新されていないworktreeを削除
+    #[arg(long)]
+    stale_days: Option<u64>,
+    /// 確認なしで削除
+    #[arg(short, long)]
+    force: bool,
+}
+
+#[derive(Args)]
+struct NotifyArgs {
+    /// 実行するコマンド
+    command: String,
+    /// 作業ディレクトリ（デフォルト: カレントディレクトリ）
+    #[arg(short, long)]
+    dir: Option<String>,
+    /// 成功時に通知
+    #[arg(long, default_value = "true")]
+    notify_success: bool,
+    /// エラー時に通知
+    #[arg(long, default_value = "true")]
+    notify_error: bool,
 }
 
 #[derive(Args)]
@@ -148,6 +192,9 @@ fn main() -> Result<()> {
         Commands::Kill(args) => cmd_kill(args),
         Commands::DiffEnv(args) => cmd_diff_env(args),
         Commands::Ui => cmd_ui(),
+        Commands::Analyze(args) => cmd_analyze(args),
+        Commands::Clean(args) => cmd_clean(args),
+        Commands::Notify(args) => cmd_notify(args),
     }
 }
 
@@ -468,4 +515,39 @@ fn cmd_diff_env(args: DiffEnvArgs) -> Result<()> {
 /// uiサブコマンド
 fn cmd_ui() -> Result<()> {
     commands::ui::execute()
+}
+
+/// analyzeサブコマンド
+fn cmd_analyze(args: AnalyzeArgs) -> Result<()> {
+    commands::analyze::execute(args.detailed)
+}
+
+/// cleanサブコマンド
+fn cmd_clean(args: CleanArgs) -> Result<()> {
+    use crate::commands::clean::CleanOptions;
+
+    let opts = CleanOptions {
+        dry_run: args.dry_run,
+        merged_only: args.merged_only,
+        stale_days: args.stale_days,
+        force: args.force,
+    };
+
+    commands::clean::execute(opts)
+}
+
+/// notifyサブコマンド
+fn cmd_notify(args: NotifyArgs) -> Result<()> {
+    let working_dir = if let Some(dir) = args.dir {
+        PathBuf::from(dir)
+    } else {
+        std::env::current_dir()?
+    };
+
+    commands::notify::execute_with_notification(
+        &args.command,
+        &working_dir,
+        args.notify_success,
+        args.notify_error,
+    )
 }

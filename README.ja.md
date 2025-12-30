@@ -288,6 +288,72 @@ wtenv ui
 - 実行中プロセス数をリアルタイム表示
 - キーボードナビゲーション
 
+### `wtenv analyze`
+
+worktreeの状態を分析し、ディスク使用量や依存関係の状態を表示。
+
+```bash
+# worktreeを分析
+wtenv analyze
+
+# 詳細情報を表示
+wtenv analyze --detailed
+```
+
+**出力例:**
+```
+📊 Worktree Analysis
+
+  feature-auth
+    Disk: 12.45 MB
+    Last update: 2 days ago
+    Tags: node_modules, lockfile, build
+
+  feature-payment
+    Disk: 8.32 MB
+    Last update: Yesterday
+    Tags: node_modules, lockfile, merged
+
+Summary
+  Total worktrees: 3
+  Total disk usage: 35.12 MB
+  Merged branches: 1
+  Stale (>30 days): 0
+```
+
+### `wtenv clean`
+
+マージ済みまたは長期間更新されていないworktreeを削除。
+
+```bash
+# ドライラン（削除候補を表示）
+wtenv clean --dry-run
+
+# マージ済みブランチのみ削除
+wtenv clean --merged-only
+
+# 30日以上更新されていないworktreeを削除
+wtenv clean --stale-days 30
+
+# 確認なしで削除
+wtenv clean --force
+```
+
+### `wtenv notify`
+
+コマンドを実行し、完了時にデスクトップ通知を送信。
+
+```bash
+# ビルドコマンドを実行して通知
+wtenv notify "npm run build"
+
+# 指定ディレクトリでコマンドを実行
+wtenv notify --dir ./worktrees/feature-a "npm test"
+
+# 成功時のみ通知
+wtenv notify --notify-error false "npm run deploy"
+```
+
 ## グローバルオプション
 
 | オプション | 説明 |
