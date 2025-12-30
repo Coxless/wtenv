@@ -6,6 +6,7 @@ mod interactive;
 mod output;
 mod worktree;
 
+
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
@@ -39,6 +40,29 @@ enum Commands {
     Init(InitArgs),
     /// 設定ファイルを表示
     Config,
+    /// worktree状態の詳細を表示
+    Status,
+    /// 実行中プロセス一覧を表示
+    Ps(PsArgs),
+    /// プロセスを停止
+    Kill(KillArgs),
+}
+
+#[derive(Args)]
+struct PsArgs {
+    /// worktreeフィルタ（ブランチ名またはパス）
+    filter: Option<String>,
+}
+
+#[derive(Args)]
+struct KillArgs {
+    /// プロセスID
+    pid: Option<u32>,
+    /// 全プロセスを停止
+    #[arg(long)]
+    all: bool,
+    /// worktreeフィルタ（ブランチ名またはパス）
+    filter: Option<String>,
 }
 
 #[derive(Args)]
@@ -105,6 +129,9 @@ fn main() -> Result<()> {
         Commands::Remove(args) => cmd_remove(args, opts),
         Commands::Init(args) => cmd_init(args, opts),
         Commands::Config => cmd_config(opts),
+        Commands::Status => cmd_status(opts),
+        Commands::Ps(args) => cmd_ps(args),
+        Commands::Kill(args) => cmd_kill(args),
     }
 }
 
@@ -400,4 +427,19 @@ fn cmd_config(opts: OutputOptions) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// statusサブコマンド
+fn cmd_status(opts: OutputOptions) -> Result<()> {
+    commands::status::execute(opts.should_print_verbose())
+}
+
+/// psサブコマンド
+fn cmd_ps(args: PsArgs) -> Result<()> {
+    commands::ps::execute(args.filter)
+}
+
+/// killサブコマンド
+fn cmd_kill(args: KillArgs) -> Result<()> {
+    commands::ps::kill(args.pid, args.all, args.filter)
 }
