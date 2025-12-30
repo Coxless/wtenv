@@ -2,8 +2,10 @@ use colored::*;
 use std::path::Path;
 
 /// 出力スタイルユーティリティ
+#[allow(dead_code)]
 pub struct OutputStyle;
 
+#[allow(dead_code)]
 impl OutputStyle {
     pub fn success(msg: &str) -> ColoredString {
         format!("✓ {}", msg).green()

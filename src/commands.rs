@@ -11,6 +11,7 @@ use crate::config::PostCreateCommand;
 #[derive(Debug)]
 pub struct CommandResult {
     pub success: bool,
+    #[allow(dead_code)]
     pub stdout: String,
     pub stderr: String,
     pub duration: Duration,
@@ -35,7 +36,7 @@ fn shell_command(cmd: &str) -> Command {
 pub fn run_command(
     command: &str,
     working_dir: &Path,
-    description: Option<&str>,
+    _description: Option<&str>,
 ) -> Result<CommandResult> {
     let start = Instant::now();
 

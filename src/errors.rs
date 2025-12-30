@@ -1,6 +1,7 @@
 use std::path::Path;
 
 /// Gitエラーメッセージのフォーマット
+#[allow(dead_code)]
 pub fn format_git_error(operation: &str, stderr: &str) -> String {
     format!(
         "❌ Git操作が失敗しました: {}\n\n\
@@ -15,6 +16,7 @@ pub fn format_git_error(operation: &str, stderr: &str) -> String {
 }
 
 /// ファイル操作エラーメッセージのフォーマット
+#[allow(dead_code)]
 pub fn format_file_error(operation: &str, path: &Path, error: &std::io::Error) -> String {
     format!(
         "❌ ファイル操作が失敗しました: {}\n\n\
@@ -30,6 +32,7 @@ pub fn format_file_error(operation: &str, path: &Path, error: &std::io::Error) -
 }
 
 /// 設定ファイルエラーメッセージのフォーマット
+#[allow(dead_code)]
 pub fn format_config_error(path: &Path, details: &str) -> String {
     format!(
         "❌ 設定ファイルエラー\n\n\

@@ -299,13 +299,11 @@ fn cmd_list(opts: OutputOptions) -> Result<()> {
 /// removeサブコマンド
 fn cmd_remove(args: RemoveArgs, opts: OutputOptions) -> Result<()> {
     // --forceがない場合は確認ダイアログを表示
-    if !args.force {
-        if !interactive::confirm_remove(&args.path)? {
-            if opts.should_print() {
-                println!("{}", "キャンセルされました".yellow());
-            }
-            return Ok(());
+    if !args.force && !interactive::confirm_remove(&args.path)? {
+        if opts.should_print() {
+            println!("{}", "キャンセルされました".yellow());
         }
+        return Ok(());
     }
 
     if opts.should_print() {

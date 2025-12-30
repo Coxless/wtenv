@@ -33,6 +33,7 @@ pub fn get_repo_root() -> Result<PathBuf> {
 }
 
 /// メインworktreeのパスを取得
+#[allow(dead_code)]
 pub fn get_main_worktree() -> Result<PathBuf> {
     let output = Command::new("git")
         .args(["worktree", "list", "--porcelain"])
@@ -58,6 +59,7 @@ pub fn get_main_worktree() -> Result<PathBuf> {
 }
 
 /// 現在のディレクトリがメインworktreeかどうか
+#[allow(dead_code)]
 pub fn is_main_worktree() -> Result<bool> {
     let current = std::env::current_dir().context("カレントディレクトリの取得に失敗しました")?;
     let main_worktree = get_main_worktree()?;
@@ -76,6 +78,7 @@ pub fn branch_exists(branch: &str) -> Result<bool> {
 }
 
 /// 現在のブランチ名を取得
+#[allow(dead_code)]
 pub fn get_current_branch() -> Result<String> {
     let output = Command::new("git")
         .args(["branch", "--show-current"])
