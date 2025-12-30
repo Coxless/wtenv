@@ -164,7 +164,3 @@ wtenv config --verbose
 ## License
 
 MIT
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.

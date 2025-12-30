@@ -164,7 +164,3 @@ wtenv config --verbose
 ## ライセンス
 
 MIT
-
-## コントリビュート
-
-詳細は[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
