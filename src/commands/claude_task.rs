@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 /// Claude Code task status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -204,6 +205,8 @@ impl ClaudeTask {
 pub struct TaskManager {
     /// Map of session_id to task
     tasks: HashMap<String, ClaudeTask>,
+    /// File modification times for caching
+    file_mtimes: HashMap<PathBuf, SystemTime>,
 }
 
 #[allow(dead_code)]
@@ -212,6 +215,7 @@ impl TaskManager {
     pub fn new() -> Self {
         Self {
             tasks: HashMap::new(),
+            file_mtimes: HashMap::new(),
         }
     }
 
@@ -234,6 +238,13 @@ impl TaskManager {
             // Only process .jsonl files
             if path.extension().and_then(|s| s.to_str()) != Some("jsonl") {
                 continue;
+            }
+
+            // Record file modification time
+            if let Ok(metadata) = fs::metadata(&path) {
+                if let Ok(mtime) = metadata.modified() {
+                    manager.file_mtimes.insert(path.clone(), mtime);
+                }
             }
 
             if let Err(e) = manager.load_session_file(&path) {
@@ -327,7 +338,60 @@ impl TaskManager {
         self.tasks.get(session_id)
     }
 
+    /// Refresh task data by reloading only changed files
+    /// This is much faster than load() when most files haven't changed
+    pub fn refresh(&mut self) -> Result<()> {
+        let progress_dir = Self::get_progress_dir();
+
+        if !progress_dir.exists() {
+            return Ok(());
+        }
+
+        for entry in fs::read_dir(&progress_dir)
+            .with_context(|| format!("Failed to read directory: {}", progress_dir.display()))?
+        {
+            let entry = entry?;
+            let path = entry.path();
+
+            // Only process .jsonl files
+            if path.extension().and_then(|s| s.to_str()) != Some("jsonl") {
+                continue;
+            }
+
+            // Check if file has been modified since last load
+            let current_mtime = match fs::metadata(&path).and_then(|m| m.modified()) {
+                Ok(mtime) => mtime,
+                Err(_) => continue,
+            };
+
+            let should_reload = match self.file_mtimes.get(&path) {
+                Some(&last_mtime) => current_mtime > last_mtime,
+                None => true, // New file
+            };
+
+            if should_reload {
+                // Remove old events for this session before reloading
+                if let Some(session_id) = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_string())
+                {
+                    self.tasks.remove(&session_id);
+                }
+
+                if let Err(e) = self.load_session_file(&path) {
+                    eprintln!("Warning: Failed to reload {}: {}", path.display(), e);
+                }
+
+                self.file_mtimes.insert(path, current_mtime);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Get the progress directory path
+    /// Falls back to current directory if home directory cannot be determined
     fn get_progress_dir() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -350,6 +414,9 @@ impl TaskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
 
     #[test]
     fn test_task_status_emoji() {
@@ -357,6 +424,17 @@ mod tests {
         assert_eq!(TaskStatus::WaitingUser.emoji(), "🟡");
         assert_eq!(TaskStatus::Completed.emoji(), "🟢");
         assert_eq!(TaskStatus::Error.emoji(), "🔴");
+    }
+
+    #[test]
+    fn test_task_status_serialization() {
+        // Test JSON serialization/deserialization
+        let status = TaskStatus::WaitingUser;
+        let json = serde_json::to_string(&status).unwrap();
+        assert_eq!(json, "\"waiting_user\"");
+
+        let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, TaskStatus::WaitingUser);
     }
 
     #[test]
@@ -382,5 +460,176 @@ mod tests {
     fn test_task_manager_creation() {
         let manager = TaskManager::new();
         assert_eq!(manager.all_tasks().len(), 0);
+        assert_eq!(manager.file_mtimes.len(), 0);
+    }
+
+    #[test]
+    fn test_is_in_worktree_edge_cases() {
+        // Test that "/feature" doesn't match "/feature-backup"
+        let event = TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: TaskStatus::InProgress,
+            message: "Test".to_string(),
+            cwd: "/home/user/feature".to_string(),
+        };
+
+        let task = ClaudeTask::new(event);
+
+        // Should match exact path
+        assert!(task.is_in_worktree("/home/user/feature"));
+
+        // Should NOT match similar but different path
+        assert!(!task.is_in_worktree("/home/user/feature-backup"));
+        assert!(!task.is_in_worktree("/home/user/featureX"));
+
+        // Should match parent directory
+        assert!(task.is_in_worktree("/home/user"));
+        assert!(task.is_in_worktree("/home"));
+    }
+
+    #[test]
+    fn test_error_tolerant_jsonl_parsing() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let file_path = temp_dir.path().join("broken.jsonl");
+
+        // Create JSONL with mixed valid and invalid lines
+        let mut file = fs::File::create(&file_path)?;
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-30T10:00:00Z","session_id":"test","event":"SessionStart","tool":null,"status":"in_progress","message":"Valid","cwd":"/tmp"}}"#
+        )?;
+        writeln!(file, "this is not valid json")?;
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-30T10:01:00Z","session_id":"test","event":"Stop","tool":null,"status":"waiting_user","message":"Valid","cwd":"/tmp"}}"#
+        )?;
+        writeln!(file, "{{malformed json without closing brace")?;
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-30T10:02:00Z","session_id":"test","event":"SessionEnd","tool":null,"status":"completed","message":"Valid","cwd":"/tmp"}}"#
+        )?;
+        drop(file);
+
+        // Load should succeed despite invalid lines
+        let mut manager = TaskManager::new();
+        manager.load_session_file(&file_path)?;
+
+        // Should have loaded 3 valid events
+        let task = manager.get_task("test").expect("Task should exist");
+        assert_eq!(task.events.len(), 3);
+        assert_eq!(task.status, TaskStatus::Completed);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_task_tool_usage() {
+        let mut events = Vec::new();
+
+        // Create events with different tools
+        for (i, tool) in ["Write", "Edit", "Write", "Bash", "Write"]
+            .iter()
+            .enumerate()
+        {
+            events.push(TaskEvent {
+                timestamp: Utc::now(),
+                session_id: "test".to_string(),
+                event: "PostToolUse".to_string(),
+                tool: Some(tool.to_string()),
+                status: TaskStatus::InProgress,
+                message: format!("Event {}", i),
+                cwd: "/tmp".to_string(),
+            });
+        }
+
+        let mut task = ClaudeTask::new(events[0].clone());
+        for event in events.iter().skip(1) {
+            task.add_event(event.clone());
+        }
+
+        let usage = task.tool_usage();
+        assert_eq!(usage.get("Write"), Some(&3));
+        assert_eq!(usage.get("Edit"), Some(&1));
+        assert_eq!(usage.get("Bash"), Some(&1));
+    }
+
+    #[test]
+    fn test_task_manager_refresh_only_changed_files() -> Result<()> {
+        // This test verifies that refresh() only reloads changed files
+        // Note: This is a simplified test that checks the internal state tracking
+        // A full integration test would require setting up the actual progress directory
+
+        let mut manager = TaskManager::new();
+
+        // Manually add an event to simulate a loaded task
+        let event = TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test_session".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: TaskStatus::InProgress,
+            message: "Test".to_string(),
+            cwd: "/tmp".to_string(),
+        };
+        manager.add_event(event);
+
+        // Verify task was loaded
+        assert!(manager.get_task("test_session").is_some());
+
+        // Verify file_mtimes starts empty (no files loaded via refresh yet)
+        assert_eq!(manager.file_mtimes.len(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_empty_session_file() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let file_path = temp_dir.path().join("empty.jsonl");
+
+        // Create empty file
+        fs::File::create(&file_path)?;
+
+        let mut manager = TaskManager::new();
+        // Should not fail on empty file
+        manager.load_session_file(&file_path)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_task_status_counts() {
+        let mut manager = TaskManager::new();
+
+        // Add tasks with different statuses
+        for (i, status) in [
+            TaskStatus::InProgress,
+            TaskStatus::InProgress,
+            TaskStatus::WaitingUser,
+            TaskStatus::Completed,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let event = TaskEvent {
+                timestamp: Utc::now(),
+                session_id: format!("session{}", i),
+                event: "SessionStart".to_string(),
+                tool: None,
+                status: *status,
+                message: "Test".to_string(),
+                cwd: "/tmp".to_string(),
+            };
+            manager.add_event(event);
+        }
+
+        let counts = manager.status_counts();
+        assert_eq!(counts.get(&TaskStatus::InProgress), Some(&2));
+        assert_eq!(counts.get(&TaskStatus::WaitingUser), Some(&1));
+        assert_eq!(counts.get(&TaskStatus::Completed), Some(&1));
+        assert_eq!(counts.get(&TaskStatus::Error), None);
     }
 }

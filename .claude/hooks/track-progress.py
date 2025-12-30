@@ -12,25 +12,42 @@ Events tracked:
 - SessionEnd: Task completion
 
 Output format: ~/.claude/task-progress/<session_id>.jsonl
+
+Security: All log files are created with 0o600 permissions (user read/write only)
 """
 
 import json
 import sys
 import os
+import traceback
 from pathlib import Path
 from datetime import datetime
 
 
-def get_task_status(hook_event: str, tool_name: str = "") -> str:
-    """Determine task status based on hook event and tool name."""
+def get_task_status(hook_event: str, tool_name: str = "", hook_data: dict = None) -> str:
+    """
+    Determine task status based on hook event and tool name.
+
+    Returns: "in_progress" | "waiting_user" | "completed" | "error"
+    """
     if hook_event == "SessionStart":
         return "in_progress"
     elif hook_event == "Stop":
         return "waiting_user"
     elif hook_event == "SessionEnd":
         return "completed"
-    elif hook_event == "PostToolUse" and tool_name == "Bash":
-        # Bash commands might indicate active work
+    elif hook_event == "PostToolUse":
+        # Check for tool errors
+        if hook_data:
+            tool_result = hook_data.get("tool_result", {})
+            # Bash tool errors
+            if tool_name == "Bash" and isinstance(tool_result, dict):
+                error = tool_result.get("error")
+                if error:
+                    return "error"
+            # Generic tool errors
+            if isinstance(tool_result, str) and "error" in tool_result.lower():
+                return "error"
         return "in_progress"
     else:
         return "in_progress"
@@ -88,8 +105,8 @@ def main():
         # Session-specific progress file
         progress_file = progress_dir / f"{session_id}.jsonl"
 
-        # Determine task status
-        status = get_task_status(hook_event, tool_name)
+        # Determine task status (with error detection)
+        status = get_task_status(hook_event, tool_name, hook_data)
         message = get_event_message(hook_data)
 
         # Create event record
@@ -103,22 +120,37 @@ def main():
             "cwd": cwd
         }
 
-        # Append to JSONL file
+        # Append to JSONL file with secure permissions (0o600)
+        file_exists = progress_file.exists()
         with open(progress_file, "a") as f:
             json.dump(event_record, f)
             f.write("\n")
+
+        # Set secure permissions on new files (user read/write only)
+        if not file_exists:
+            os.chmod(progress_file, 0o600)
 
         # For SessionStart, output context message to Claude
         if hook_event == "SessionStart":
             sys.stdout.write("✓ Task progress tracking initialized for wtenv UI")
 
     except Exception as e:
-        # Log errors but don't fail the hook
+        # Log errors with full traceback but don't fail the hook
         error_log = Path.home() / ".claude" / "task-progress" / "errors.log"
         error_log.parent.mkdir(parents=True, exist_ok=True)
 
+        # Set secure permissions on error log
+        file_exists = error_log.exists()
         with open(error_log, "a") as f:
-            f.write(f"{datetime.utcnow().isoformat()}: {str(e)}\n")
+            f.write(f"\n{'='*60}\n")
+            f.write(f"Time: {datetime.utcnow().isoformat()}Z\n")
+            f.write(f"Error: {str(e)}\n")
+            f.write(f"Traceback:\n")
+            f.write(traceback.format_exc())
+            f.write(f"{'='*60}\n")
+
+        if not file_exists:
+            os.chmod(error_log, 0o600)
 
 
 if __name__ == "__main__":
