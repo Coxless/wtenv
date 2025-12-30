@@ -108,7 +108,6 @@ pub fn create_default_config(dir: &Path, force: bool) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
 
     #[test]
     fn test_parse_yaml_config() {

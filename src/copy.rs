@@ -146,8 +146,6 @@ pub fn copy_files(files: &[PathBuf], source_dir: &Path, dest_dir: &Path) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io::Write;
 
     #[test]
     fn test_filter_excluded() {
