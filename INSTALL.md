@@ -9,13 +9,13 @@
 
 ### From Binary (Recommended)
 
-1. Download the appropriate binary from [Releases](https://github.com/USERNAME/wtenv/releases)
+1. Download the appropriate binary from [Releases](https://github.com/Coxless/wtenv/releases)
 2. Extract and place in your PATH
 
 #### Linux
 
 ```bash
-curl -L https://github.com/USERNAME/wtenv/releases/latest/download/wtenv-linux-x64 -o wtenv
+curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-linux-x64 -o wtenv
 chmod +x wtenv
 sudo mv wtenv /usr/local/bin/
 ```
@@ -24,10 +24,10 @@ sudo mv wtenv /usr/local/bin/
 
 ```bash
 # Intel Mac
-curl -L https://github.com/USERNAME/wtenv/releases/latest/download/wtenv-macos-x64 -o wtenv
+curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-macos-x64 -o wtenv
 
 # Apple Silicon Mac
-curl -L https://github.com/USERNAME/wtenv/releases/latest/download/wtenv-macos-arm64 -o wtenv
+curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-macos-arm64 -o wtenv
 
 chmod +x wtenv
 sudo mv wtenv /usr/local/bin/
@@ -43,7 +43,7 @@ sudo mv wtenv /usr/local/bin/
 
 ```bash
 # Clone the repository
-git clone https://github.com/USERNAME/wtenv.git
+git clone https://github.com/Coxless/wtenv.git
 cd wtenv
 
 # Build and install
