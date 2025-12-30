@@ -44,7 +44,14 @@ impl App {
         let process_manager = ProcessManager::load(&repo_root)?;
 
         // Load Claude Code task progress
-        let task_manager = TaskManager::load().unwrap_or_default();
+        let task_manager = match TaskManager::load() {
+            Ok(tm) => tm,
+            Err(e) => {
+                eprintln!("⚠️  Failed to load Claude Code task progress: {}", e);
+                eprintln!("    Continuing with empty task manager...");
+                TaskManager::default()
+            }
+        };
 
         let mut list_state = ListState::default();
         if !worktrees.is_empty() {
@@ -120,7 +127,13 @@ impl App {
         self.process_manager = ProcessManager::load(&repo_root)?;
 
         // Reload Claude Code task progress
-        self.task_manager = TaskManager::load().unwrap_or_default();
+        self.task_manager = match TaskManager::load() {
+            Ok(tm) => tm,
+            Err(e) => {
+                eprintln!("⚠️  Failed to reload Claude Code task progress: {}", e);
+                TaskManager::default()
+            }
+        };
 
         // 選択状態を維持
         if self.selected_index >= self.worktrees.len() {

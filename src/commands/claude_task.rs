@@ -151,12 +151,37 @@ impl ClaudeTask {
 
     /// Check if task is associated with a specific worktree path
     pub fn is_in_worktree(&self, worktree_path: &str) -> bool {
-        self.worktree_path.starts_with(worktree_path)
-            || Path::new(&self.worktree_path)
-                .canonicalize()
-                .ok()
-                .and_then(|p| Path::new(worktree_path).canonicalize().ok().map(|w| p == w))
-                .unwrap_or(false)
+        // First try exact match with canonicalized paths
+        if let (Ok(task_path), Ok(wt_path)) = (
+            Path::new(&self.worktree_path).canonicalize(),
+            Path::new(worktree_path).canonicalize(),
+        ) {
+            if task_path == wt_path {
+                return true;
+            }
+
+            // Check if task path is a subdirectory of worktree path
+            // This handles cases where task is running in a subdirectory
+            if task_path.starts_with(&wt_path) {
+                return true;
+            }
+        }
+
+        // Fallback: string comparison for non-existent paths
+        // Use path component comparison to avoid false matches like
+        // "/home/user/feature" matching "/home/user/feature-backup"
+        let task_components: Vec<_> = Path::new(&self.worktree_path).components().collect();
+        let wt_components: Vec<_> = Path::new(worktree_path).components().collect();
+
+        // Task path must start with all worktree path components
+        if task_components.len() >= wt_components.len() {
+            task_components
+                .iter()
+                .zip(wt_components.iter())
+                .all(|(a, b)| a == b)
+        } else {
+            false
+        }
     }
 
     /// Count events by tool type
@@ -224,20 +249,40 @@ impl TaskManager {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
+        let mut valid_events = 0;
+        let mut parse_errors = 0;
+
         for (line_num, line) in content.lines().enumerate() {
             if line.trim().is_empty() {
                 continue;
             }
 
-            let event: TaskEvent = serde_json::from_str(line).with_context(|| {
-                format!(
-                    "Failed to parse JSON at {}:{}",
-                    path.display(),
-                    line_num + 1
-                )
-            })?;
+            // Error-tolerant parsing: skip invalid lines instead of failing entire file
+            match serde_json::from_str::<TaskEvent>(line) {
+                Ok(event) => {
+                    self.add_event(event);
+                    valid_events += 1;
+                }
+                Err(e) => {
+                    parse_errors += 1;
+                    eprintln!(
+                        "⚠️  Warning: Skipping invalid line in {}:{}: {}",
+                        path.display(),
+                        line_num + 1,
+                        e
+                    );
+                    // Continue processing remaining lines
+                }
+            }
+        }
 
-            self.add_event(event);
+        if parse_errors > 0 {
+            eprintln!(
+                "⚠️  Session file {} had {} parse errors ({} events loaded successfully)",
+                path.display(),
+                parse_errors,
+                valid_events
+            );
         }
 
         Ok(())

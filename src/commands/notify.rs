@@ -30,6 +30,23 @@ pub fn execute_with_notification(
     notify_on_success: bool,
     notify_on_error: bool,
 ) -> Result<()> {
+    // Validate working directory exists
+    if !working_dir.exists() {
+        anyhow::bail!(
+            "❌ Working directory does not exist: {}\n\n\
+             Please check the path and try again.",
+            working_dir.display()
+        );
+    }
+
+    if !working_dir.is_dir() {
+        anyhow::bail!(
+            "❌ Path is not a directory: {}\n\n\
+             Please specify a valid directory path.",
+            working_dir.display()
+        );
+    }
+
     println!("{}", format!("🚀 Executing: {}", command).cyan());
     println!();
 
