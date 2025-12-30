@@ -354,6 +354,29 @@ wtenv notify --dir ./worktrees/feature-a "npm test"
 wtenv notify --notify-error false "npm run deploy"
 ```
 
+### `wtenv pr`
+
+Create worktree from GitHub PR. Requires GitHub CLI (`gh`).
+
+```bash
+# Create worktree from PR #123
+wtenv pr 123
+
+# Specify custom path
+wtenv pr 456 /path/to/worktree
+```
+
+**Features:**
+- Automatically fetch PR information using GitHub CLI
+- Automatically fetch remote branch
+- Automatically create worktree
+- Automatically copy environment files
+- Automatically run post-create commands
+
+**Requirements:**
+- GitHub CLI (`gh`) must be installed
+- Must be authenticated with GitHub CLI (`gh auth login`)
+
 ## Global Options
 
 | Option | Description |
