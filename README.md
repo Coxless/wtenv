@@ -268,6 +268,26 @@ wtenv diff-env --all
     - true
 ```
 
+### `wtenv ui`
+
+Manage worktrees with an interactive TUI.
+
+```bash
+# Launch TUI
+wtenv ui
+```
+
+**Key bindings:**
+- `↑/↓` or `j/k`: Navigate worktrees
+- `r`: Refresh status
+- `q` or `Esc`: Quit
+
+**Features:**
+- List all worktrees with status
+- Display detailed information for selected worktree
+- Real-time process count display
+- Keyboard navigation
+
 ## Global Options
 
 | Option | Description |

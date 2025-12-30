@@ -47,6 +47,8 @@ enum Commands {
     Kill(KillArgs),
     /// worktree間の環境変数を比較
     DiffEnv(DiffEnvArgs),
+    /// インタラクティブTUI
+    Ui,
 }
 
 #[derive(Args)]
@@ -145,6 +147,7 @@ fn main() -> Result<()> {
         Commands::Ps(args) => cmd_ps(args),
         Commands::Kill(args) => cmd_kill(args),
         Commands::DiffEnv(args) => cmd_diff_env(args),
+        Commands::Ui => cmd_ui(),
     }
 }
 
@@ -460,4 +463,9 @@ fn cmd_kill(args: KillArgs) -> Result<()> {
 /// diff-envサブコマンド
 fn cmd_diff_env(args: DiffEnvArgs) -> Result<()> {
     commands::diff_env::execute(args.worktree1, args.worktree2, args.all)
+}
+
+/// uiサブコマンド
+fn cmd_ui() -> Result<()> {
+    commands::ui::execute()
 }
