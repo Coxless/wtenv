@@ -149,8 +149,6 @@ mod tests {
         std::env::set_current_dir("/tmp").ok();
         let result = execute(false);
         // Gitリポジトリ内でなければエラー
-        if result.is_err() {
-            assert!(true);
-        }
+        assert!(result.is_err(), "Should fail outside git repository");
     }
 }

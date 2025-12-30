@@ -19,6 +19,7 @@ pub struct AnalysisInfo {
     pub path: PathBuf,
     pub branch: Option<String>,
     pub disk_usage: u64,
+    #[allow(dead_code)]
     pub last_modified: Option<SystemTime>,
     pub has_node_modules: bool,
     pub has_package_lock: bool,
@@ -41,7 +42,7 @@ impl AnalysisInfo {
 
         // mainブランチにマージ済みかチェック
         let is_merged = if let Some(ref b) = branch {
-            check_if_merged(&b, main_branch)?
+            check_if_merged(b, main_branch)?
         } else {
             false
         };
@@ -126,7 +127,13 @@ fn calculate_dir_size(path: &Path) -> Result<u64> {
 /// ディレクトリ内の最終更新日時を取得
 fn get_last_modified(path: &Path) -> Result<Option<SystemTime>> {
     let output = std::process::Command::new("git")
-        .args(["-C", worktree::path_to_str(path)?, "log", "-1", "--format=%ct"])
+        .args([
+            "-C",
+            worktree::path_to_str(path)?,
+            "log",
+            "-1",
+            "--format=%ct",
+        ])
         .output()?;
 
     if output.status.success() {
@@ -255,7 +262,10 @@ pub fn execute(detailed: bool) -> Result<()> {
         "  Total worktrees: {}",
         worktrees.len().to_string().yellow()
     );
-    println!("  Total disk usage: {}", output::format_size(total_size).yellow());
+    println!(
+        "  Total disk usage: {}",
+        output::format_size(total_size).yellow()
+    );
     println!("  Merged branches: {}", merged_count.to_string().green());
     println!(
         "  Stale (>{} days): {}",

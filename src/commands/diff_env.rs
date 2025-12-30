@@ -238,11 +238,9 @@ fn print_all_env_comparison(worktrees: &[worktree::WorktreeInfo]) -> Result<()> 
             let file_name = env_file.path.to_str().unwrap_or("unknown");
 
             for (key, value) in &env_file.variables {
-                let file_map = all_keys
-                    .entry(file_name.to_string())
-                    .or_insert_with(HashMap::new);
+                let file_map = all_keys.entry(file_name.to_string()).or_default();
 
-                let key_entry = file_map.entry(key.clone()).or_insert_with(HashMap::new);
+                let key_entry = file_map.entry(key.clone()).or_default();
 
                 key_entry.insert(wt_name.to_string(), Some(value.clone()));
             }

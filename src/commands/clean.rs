@@ -177,7 +177,12 @@ pub fn execute(opts: CleanOptions) -> Result<()> {
 /// worktreeを削除
 fn remove_worktree(path: &Path) -> Result<()> {
     let output = std::process::Command::new("git")
-        .args(["worktree", "remove", worktree::path_to_str(path)?, "--force"])
+        .args([
+            "worktree",
+            "remove",
+            worktree::path_to_str(path)?,
+            "--force",
+        ])
         .output()?;
 
     if !output.status.success() {
