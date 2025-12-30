@@ -10,9 +10,14 @@ exclude:
 postCreate:
   - command: mise trust && mise install
     description: "Miseでツールをインストール中..."
-    
-  - command: npm install
-    description: "依存関係をインストール中..."
+
+  - command: cargo install --locked --path .
+    description: "Rustの依存関係をインストール中..."
+
+  - command: cd test-project && mise trust && mise install
+    description: "Miseでtest-projectにツールをインストール中..."
+
+  - command: cd test-project && npm install
+    description: "test-projectで依存関係をインストール中..."
 
   - command: echo "setup complete!"
-    description: "セットアップ完了メッセージ表示中..."

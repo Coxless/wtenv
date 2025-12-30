@@ -18,10 +18,13 @@ pub struct CommandResult {
 }
 
 /// プラットフォームごとのシェルコマンド作成
+/// miseがインストールされている場合は自動的にactivateする
 #[cfg(unix)]
 fn shell_command(cmd: &str) -> Command {
-    let mut c = Command::new("sh");
-    c.args(["-c", cmd]);
+    let mut c = Command::new("bash");
+    // miseをactivateしてからコマンドを実行（nodeなどのツールを有効化）
+    let wrapped_cmd = format!("eval \"$(mise activate bash 2>/dev/null)\" 2>/dev/null; {}", cmd);
+    c.args(["-c", &wrapped_cmd]);
     c
 }
 
