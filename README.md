@@ -3,16 +3,23 @@
 > **Warning**
 > This tool is under development and not stable. Please use with caution.
 
-Fast and user-friendly git worktree management CLI tool.
+Fast and user-friendly git worktree management CLI tool with **parallel development control center** features.
 
 ## Features
 
+### Core Worktree Management
 - Easy worktree creation with branch management
 - Automatic environment file copying (based on config)
 - Post-create command execution
 - Interactive mode (no arguments required)
 - Progress indicators and colored output
 - Verbose and quiet output modes
+
+### **NEW: Parallel Development Control Center** 🚀
+- **Real-time worktree status monitoring** - See all worktrees at a glance with file changes and commit info
+- **Process management** - Track and manage processes running in each worktree
+- **Process control** - Kill processes by PID, worktree, or all at once
+- **Persistent process tracking** - Process information survives terminal sessions
 
 ## Installation
 
@@ -89,7 +96,84 @@ postCreate:
 
 ## Commands
 
-### `wtenv create [BRANCH] [PATH]`
+### Monitoring & Control Commands
+
+#### `wtenv status`
+
+Display detailed status of all worktrees with process information.
+
+```bash
+# Show worktree overview
+wtenv status
+
+# Verbose mode (shows full paths)
+wtenv status --verbose
+```
+
+**Output example:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees Overview (3 active, 2 processes)                  │
+├─────────────────────────────────────────────────────────────┤
+│ 🔄 feature-a                      main → feature-a          │
+│    Status: Modified (3 files)     Process: pnpm test        │
+│    Modified: 3 files  |  Last commit: 2h ago                │
+│                                                              │
+│ 🔨 feature-b                      main → feature-b          │
+│    Status: Running                Process: pnpm build       │
+│    Modified: 1 file   |  Last commit: 30m ago               │
+│                                                              │
+│ ✅ bugfix-123                     main → bugfix-123         │
+│    Status: Clean                  No process                │
+│    Last commit: 5m ago                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 📊 Total: 3 worktrees  |  Modified: 4 files                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### `wtenv ps [FILTER]`
+
+List all running processes in worktrees.
+
+```bash
+# Show all processes
+wtenv ps
+
+# Filter by worktree/branch name
+wtenv ps feature-a
+```
+
+**Output example:**
+```
+Active Processes in Worktrees:
+
+feature-a (PID: 12345)
+  Command: pnpm test:e2e
+  Started: 9m 12s ago
+  Working Dir: /home/user/projects/myapp-feature-a
+  Status: Running
+
+Total: 1 process
+```
+
+#### `wtenv kill [OPTIONS]`
+
+Stop running processes.
+
+```bash
+# Kill specific PID
+wtenv kill 12345
+
+# Kill all processes
+wtenv kill --all
+
+# Kill processes in specific worktree
+wtenv kill feature-a
+```
+
+### Worktree Management Commands
+
+#### `wtenv create [BRANCH] [PATH]`
 
 Create a new worktree.
 
