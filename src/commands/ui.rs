@@ -356,15 +356,15 @@ fn render_claude_tasks(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             let status_emoji = task.status.emoji();
             let status_text = match task.status {
                 TaskStatus::InProgress => "In Progress",
-                TaskStatus::WaitingUser => "⚠ Needs Response",
-                TaskStatus::Completed => "Completed",
+                TaskStatus::Stop => "⚠ Needs Action",
+                TaskStatus::SessionEnded => "Session Ended",
                 TaskStatus::Error => "Error",
             };
 
             let color = match task.status {
                 TaskStatus::InProgress => Color::Blue,
-                TaskStatus::WaitingUser => Color::Yellow,
-                TaskStatus::Completed => Color::Green,
+                TaskStatus::Stop => Color::Yellow,
+                TaskStatus::SessionEnded => Color::Gray,
                 TaskStatus::Error => Color::Red,
             };
 

@@ -237,18 +237,15 @@ pub fn notify_claude_task_status(task: &ClaudeTask) -> Result<()> {
         .unwrap_or("unknown");
 
     let (title, message, notify_type) = match task.status {
-        TaskStatus::Completed => (
-            format!("✅ Task Completed - {}", worktree_name),
-            format!(
-                "Claude Code session completed in {}",
-                task.duration_string()
-            ),
-            NotifyType::Success,
+        TaskStatus::SessionEnded => (
+            format!("⚫ Session Ended - {}", worktree_name),
+            format!("Claude Code session ended after {}", task.duration_string()),
+            NotifyType::Info,
         ),
-        TaskStatus::WaitingUser => (
-            format!("⏸️  Response Needed - {}", worktree_name),
+        TaskStatus::Stop => (
+            format!("⏸️  Action Needed - {}", worktree_name),
             format!(
-                "Claude is waiting for your response after {}",
+                "Claude is waiting for your action after {}",
                 task.duration_string()
             ),
             NotifyType::Info,

@@ -6,10 +6,17 @@ This hook tracks Claude Code session progress and writes events to a JSONL file
 that can be consumed by wtenv UI for real-time task monitoring.
 
 Events tracked:
-- SessionStart: Task initialization
-- PostToolUse: Progress updates on tool execution
-- Stop: User response required or task paused
-- SessionEnd: Task completion
+- SessionStart: Task initialization → in_progress
+- PostToolUse: Progress updates on tool execution → in_progress (or error)
+- Stop: Response completed, user action needed → stop
+- SessionEnd: Session ended → session_ended
+- Notification: Permission or input needed → stop
+
+Status mapping:
+- in_progress: Claude is actively working
+- stop: Response completed, waiting for user action
+- session_ended: Session has ended
+- error: Tool execution failed
 
 Output format: ~/.claude/task-progress/<session_id>.jsonl
 
@@ -28,14 +35,24 @@ def get_task_status(hook_event: str, tool_name: str = "", hook_data: dict = None
     """
     Determine task status based on hook event and tool name.
 
-    Returns: "in_progress" | "waiting_user" | "completed" | "error"
+    Returns: "in_progress" | "stop" | "session_ended" | "error"
     """
     if hook_event == "SessionStart":
         return "in_progress"
     elif hook_event == "Stop":
-        return "waiting_user"
+        # Response completed, waiting for user action
+        return "stop"
     elif hook_event == "SessionEnd":
-        return "completed"
+        # Session has ended
+        return "session_ended"
+    elif hook_event == "Notification":
+        # Permission or input needed
+        if hook_data:
+            message = hook_data.get("message", "").lower()
+            # "Claude needs permission" or "waiting for input"
+            if "permission" in message or "waiting" in message or "input" in message:
+                return "stop"
+        return None  # Other notifications don't change status
     elif hook_event == "PostToolUse":
         # Check for tool errors
         if hook_data:
@@ -115,10 +132,13 @@ def main():
             "session_id": session_id,
             "event": hook_event,
             "tool": tool_name if tool_name else None,
-            "status": status,
             "message": message,
             "cwd": cwd
         }
+
+        # Only include status if it's not None
+        if status is not None:
+            event_record["status"] = status
 
         # Append to JSONL file with secure permissions (0o600)
         file_exists = progress_file.exists()

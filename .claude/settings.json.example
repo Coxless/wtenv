@@ -44,6 +44,16 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-progress.py"
+          }
+        ]
+      }
     ]
   }
 }
