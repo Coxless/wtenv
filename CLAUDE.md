@@ -6,14 +6,13 @@
 
 ### 利用言語
 - Rust 2021 edition
-- 最小サポートバージョン: 1.92.0
+- 最小サポートバージョン: 1.91.0
 
 ### 利用ライブラリ
 - clap 4.4系（CLI パーサー、derive機能使用）
 - serde 1.0系（シリアライゼーション）
 - serde_yaml 0.9系（YAML パース）
 - serde_json 1.0系（JSON パース、PR情報取得用）
-- toml 0.8系（TOML パース）
 - glob 0.3系（ファイルパターンマッチング）
 - colored 2.1系（カラー出力）
 - anyhow 1.0系（エラーハンドリング）
@@ -27,6 +26,7 @@
 - tokio 1.x系（非同期ランタイム、full機能有効）
 - notify-rust 4.11系（デスクトップ通知）
 - dotenvy 0.15系（環境変数ファイル読込）
+- dirs 5.0系（ホームディレクトリ解決）
 
 ### ビルド設定
 ```toml
@@ -42,7 +42,7 @@ strip = true         # シンボル削除
 | Path | 用途 | 命名規則 |
 |------|------|----------|
 | `/src/main.rs` | エントリーポイント。CLIパーサー定義とサブコマンドのルーティング。clapのderive APIを使用してCLI構造を定義 | - |
-| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAMLとTOML両対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
+| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAML対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
 | `/src/copy.rs` | ファイルコピー機能。globパターンマッチング、除外フィルター、ディレクトリ再帰作成 | 関数は動詞始まり |
 | `/src/output.rs` | 出力フォーマット機能。verbose/quiet制御 | - |
 | `/src/errors.rs` | エラーフォーマット機能 | - |
@@ -53,11 +53,12 @@ strip = true         # シンボル削除
 | `/src/commands/status.rs` | worktree状態表示コマンド | - |
 | `/src/commands/ps.rs` | プロセス一覧・停止コマンド | - |
 | `/src/commands/diff_env.rs` | 環境変数比較コマンド | - |
-| `/src/commands/ui.rs` | インタラクティブTUIコマンド | - |
+| `/src/commands/ui.rs` | インタラクティブTUIコマンド。Claude Code タスク進捗表示機能を含む | - |
 | `/src/commands/analyze.rs` | worktree分析コマンド | - |
 | `/src/commands/clean.rs` | クリーンアップコマンド | - |
-| `/src/commands/notify.rs` | デスクトップ通知コマンド | - |
+| `/src/commands/notify.rs` | デスクトップ通知コマンド。Claude Code タスク通知機能を含む | - |
 | `/src/commands/pr.rs` | GitHub PR連携コマンド | - |
+| `/src/commands/claude_task.rs` | Claude Code タスク進捗追跡。データ構造とJSONL読み込み | - |
 
 ### モジュール分割基準
 - **worktree/**: Git worktree操作に関する全ての機能
@@ -66,6 +67,7 @@ strip = true         # シンボル削除
   - **process.rs**: プロセス管理（追跡、永続化）
 - **commands/**: サブコマンド実装
   - **mod.rs**: post-create実行、共通機能
+  - **claude_task.rs**: Claude Code タスク進捗追跡（データ構造、JSONL読み込み、タスク管理）
   - 各サブコマンドごとに独立したモジュール
 - **copy.rs**: ファイルシステム操作（コピー・パターンマッチ・除外）
 - **config.rs**: 設定ファイル処理（検索・読込・初期化・バリデーション）
@@ -129,7 +131,7 @@ if !output.status.success() {
 - シンボリックリンクは通常のファイルとしてコピー
 
 ### 設定ファイル
-- 検索順: `.worktree.yml` → `.worktree.yaml` → `.worktree.toml` → `worktree.config.yml` → `worktree.config.toml`
+- 検索順: `.worktree.yml` → `.worktree.yaml`
 - 見つからない場合はデフォルト設定を使用（エラーにしない）
 - バージョンフィールドは必須。現在は`version: 1`のみサポート
 - 不明なフィールドは無視（将来の拡張性のため）

@@ -20,6 +20,10 @@ Fast and user-friendly git worktree management CLI tool with **parallel developm
 - **Process management** - Track and manage processes running in each worktree
 - **Process control** - Kill processes by PID, worktree, or all at once
 - **Persistent process tracking** - Process information survives terminal sessions
+- **Claude Code integration** 🤖 - Track Claude Code task progress across all worktrees in real-time
+  - Monitor active AI coding sessions
+  - Get notified when Claude needs your response
+  - View task duration and status at a glance
 
 ## Installation
 
@@ -270,7 +274,7 @@ wtenv diff-env --all
 
 ### `wtenv ui`
 
-Manage worktrees with an interactive TUI.
+Manage worktrees with an interactive TUI, including Claude Code task monitoring.
 
 ```bash
 # Launch TUI
@@ -279,14 +283,39 @@ wtenv ui
 
 **Key bindings:**
 - `↑/↓` or `j/k`: Navigate worktrees
-- `r`: Refresh status
+- `r`: Refresh status (reloads worktrees, processes, and Claude tasks)
 - `q` or `Esc`: Quit
 
 **Features:**
 - List all worktrees with status
 - Display detailed information for selected worktree
 - Real-time process count display
+- **Claude Code task tracking** - View active AI coding sessions
+  - 🔵 In Progress - Claude is actively working
+  - 🟡 Needs Action - Response completed, user action needed
+  - ⚫ Session Ended - Session has ended
+  - 🔴 Error - Task encountered an error
 - Keyboard navigation
+
+**Claude Code Integration:**
+
+The UI automatically detects and displays active Claude Code sessions from all your worktrees. To enable this feature:
+
+1. Copy the hook configuration:
+   ```bash
+   cp .claude/settings.json.example .claude/settings.json
+   # or for global configuration:
+   cp .claude/settings.json.example ~/.claude/settings.json
+   ```
+
+2. Ensure the hook script is executable:
+   ```bash
+   chmod +x .claude/hooks/track-progress.py
+   ```
+
+3. Start using Claude Code - tasks will automatically appear in `wtenv ui`
+
+See `.claude/hooks/README.md` for more details.
 
 ### `wtenv analyze`
 

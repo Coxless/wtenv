@@ -1,4 +1,5 @@
 pub mod analyze;
+pub mod claude_task;
 pub mod clean;
 pub mod diff_env;
 pub mod notify;

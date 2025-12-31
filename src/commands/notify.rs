@@ -5,6 +5,8 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
+use crate::commands::claude_task::{ClaudeTask, TaskStatus};
+
 /// 通知タイプ
 #[derive(Debug, Clone, Copy)]
 pub enum NotifyType {
@@ -28,6 +30,23 @@ pub fn execute_with_notification(
     notify_on_success: bool,
     notify_on_error: bool,
 ) -> Result<()> {
+    // Validate working directory exists
+    if !working_dir.exists() {
+        anyhow::bail!(
+            "❌ Working directory does not exist: {}\n\n\
+             Please check the path and try again.",
+            working_dir.display()
+        );
+    }
+
+    if !working_dir.is_dir() {
+        anyhow::bail!(
+            "❌ Path is not a directory: {}\n\n\
+             Please specify a valid directory path.",
+            working_dir.display()
+        );
+    }
+
     println!("{}", format!("🚀 Executing: {}", command).cyan());
     println!();
 
@@ -204,6 +223,70 @@ pub fn notify_test_complete(success: bool, duration_secs: f64) -> Result<()> {
             message: format!("Some tests failed after {:.2}s", duration_secs),
             notify_type: NotifyType::Error,
         }
+    };
+
+    send_notification(opts)
+}
+
+/// Claude Code タスク状態変化通知
+#[allow(dead_code)]
+pub fn notify_claude_task_status(task: &ClaudeTask) -> Result<()> {
+    let worktree_name = std::path::Path::new(&task.worktree_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    let (title, message, notify_type) = match task.status {
+        TaskStatus::SessionEnded => (
+            format!("⚫ Session Ended - {}", worktree_name),
+            format!("Claude Code session ended after {}", task.duration_string()),
+            NotifyType::Info,
+        ),
+        TaskStatus::Stop => (
+            format!("⏸️  Action Needed - {}", worktree_name),
+            format!(
+                "Claude is waiting for your action after {}",
+                task.duration_string()
+            ),
+            NotifyType::Info,
+        ),
+        TaskStatus::Error => (
+            format!("❌ Task Failed - {}", worktree_name),
+            "Claude Code task encountered an error".to_string(),
+            NotifyType::Error,
+        ),
+        TaskStatus::InProgress => {
+            // Don't notify for in-progress by default
+            return Ok(());
+        }
+    };
+
+    send_notification(NotifyOptions {
+        title,
+        message,
+        notify_type,
+    })
+}
+
+/// Claude Code タスク完了通知（成功時のみ）
+#[allow(dead_code)]
+pub fn notify_claude_task_complete(worktree: &str, duration_secs: f64) -> Result<()> {
+    let opts = NotifyOptions {
+        title: format!("✅ Claude Task Complete - {}", worktree),
+        message: format!("Session completed in {:.1}s", duration_secs),
+        notify_type: NotifyType::Success,
+    };
+
+    send_notification(opts)
+}
+
+/// Claude Code ユーザー応答待ち通知
+#[allow(dead_code)]
+pub fn notify_claude_needs_response(worktree: &str) -> Result<()> {
+    let opts = NotifyOptions {
+        title: format!("⏸️  Claude Needs Response - {}", worktree),
+        message: "Claude is waiting for your input".to_string(),
+        notify_type: NotifyType::Info,
     };
 
     send_notification(opts)
