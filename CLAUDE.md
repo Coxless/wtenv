@@ -42,7 +42,7 @@ strip = true         # シンボル削除
 | Path | 用途 | 命名規則 |
 |------|------|----------|
 | `/src/main.rs` | エントリーポイント。CLIパーサー定義とサブコマンドのルーティング。clapのderive APIを使用してCLI構造を定義 | - |
-| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAML対応。デフォルト設定の提供 | 構造体は`Config`で終わる |
+| `/src/config.rs` | 設定ファイルの検索・読み込み・初期化。YAML対応。デフォルト設定の提供。Claude Code hooks テンプレートの作成 | 構造体は`Config`で終わる |
 | `/src/copy.rs` | ファイルコピー機能。globパターンマッチング、除外フィルター、ディレクトリ再帰作成 | 関数は動詞始まり |
 | `/src/output.rs` | 出力フォーマット機能。verbose/quiet制御 | - |
 | `/src/errors.rs` | エラーフォーマット機能 | - |
@@ -70,7 +70,7 @@ strip = true         # シンボル削除
   - **claude_task.rs**: Claude Code タスク進捗追跡（データ構造、JSONL読み込み、タスク管理）
   - 各サブコマンドごとに独立したモジュール
 - **copy.rs**: ファイルシステム操作（コピー・パターンマッチ・除外）
-- **config.rs**: 設定ファイル処理（検索・読込・初期化・バリデーション）
+- **config.rs**: 設定ファイル処理（検索・読込・初期化・バリデーション）、Claude Code hooks テンプレート作成
 - **output.rs**: 出力制御（verbose/quiet）
 - **errors.rs**: エラーフォーマット
 
@@ -226,6 +226,7 @@ wtenv
 
 ### initオプション
 - `-f, --force`: 既存設定を上書き
+- `--hooks`: Claude Code hooks も作成（.claude/settings.json, .claude/hooks/*.sh, .claude/hooks/*.py, ~/.claude/stop-hook-git-check.sh）
 
 ### psオプション
 - `filter`: worktreeフィルタ（ブランチ名またはパス）
@@ -279,3 +280,67 @@ wtenv
 - タグプッシュで自動ビルド（GitHub Actions）
 - macOS（Intel/ARM）、Linux（x64）、Windows（x64）のバイナリ提供
 - バイナリ名: `wtenv-{version}-{os}-{arch}`
+
+## Claude Code 連携
+
+### hooks 初期化
+
+`wtenv init --hooks` コマンドで、Claude Code の hooks ファイルを自動生成できます。
+
+#### 作成されるファイル
+
+1. **`.claude/settings.json`** - Claude Code hooks 設定
+   - SessionStart hook: セッション開始時に開発コンテキストを表示
+   - Stop hook: タスク完了時に git の状態をチェック
+
+2. **`.claude/hooks/session-init.sh`** - SessionStart hook スクリプト
+   - 現在のブランチと worktree 情報を表示
+   - 最近のコミット履歴を表示
+   - 未コミット/ステージング済み/未追跡ファイルの状態を表示
+
+3. **`.claude/hooks/track-progress.py`** - タスク進捗追跡 hook (Python)
+   - Claude Code のタスク進捗を `~/.claude/task-progress/<session_id>.jsonl` に記録
+   - `wtenv ui` コマンドでリアルタイム進捗表示が可能
+   - SessionStart, PostToolUse, Stop, SessionEnd イベントを追跡
+
+4. **`~/.claude/stop-hook-git-check.sh`** - グローバル Stop hook
+   - 未コミットの変更がないかチェック
+   - 未追跡ファイルがないかチェック
+   - リモートにプッシュされていないコミットがないかチェック
+   - 問題がある場合は exit 2 で Claude に通知
+
+#### hooks の有効化
+
+```bash
+# プロジェクトレベルで有効化（推奨）
+wtenv init --hooks
+
+# グローバルで有効化（全プロジェクトに適用）
+cp .claude/settings.json ~/.claude/settings.json
+```
+
+#### hooks のカスタマイズ
+
+作成された hooks スクリプトは自由に編集可能です:
+
+```bash
+# セッション開始時のコンテキスト表示をカスタマイズ
+vim .claude/hooks/session-init.sh
+
+# タスク進捗追跡のロジックをカスタマイズ
+vim .claude/hooks/track-progress.py
+
+# git チェックのルールをカスタマイズ
+vim ~/.claude/stop-hook-git-check.sh
+```
+
+### Claude Code タスク進捗表示
+
+`wtenv ui` コマンドで、Claude Code のタスク進捗をリアルタイムで確認できます:
+
+- アクティブな Claude Code セッション一覧
+- 各セッションの現在の状態（in_progress, stop, session_ended, error）
+- 最後のアクティビティ（ツール実行、ファイル編集など）
+- タイムスタンプ
+
+進捗データは `.claude/hooks/track-progress.py` が自動的に記録します。
