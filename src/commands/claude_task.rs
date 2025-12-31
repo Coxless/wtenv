@@ -47,7 +47,7 @@ impl TaskStatus {
     pub fn description(&self) -> &str {
         match self {
             TaskStatus::InProgress => "In Progress",
-            TaskStatus::Stop => "Needs Action",
+            TaskStatus::Stop => "Stop",
             TaskStatus::SessionEnded => "Session Ended",
             TaskStatus::Error => "Error",
         }

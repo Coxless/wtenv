@@ -375,7 +375,7 @@ fn render_claude_tasks(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             let status_emoji = task.status.emoji();
             let status_text = match task.status {
                 TaskStatus::InProgress => "In Progress",
-                TaskStatus::Stop => "⚠ Needs Action",
+                TaskStatus::Stop => "⚠ Stop",
                 TaskStatus::SessionEnded => "Session Ended",
                 TaskStatus::Error => "Error",
             };
