@@ -292,8 +292,8 @@ wtenv ui
 - Real-time process count display
 - **Claude Code task tracking** - View active AI coding sessions
   - 🔵 In Progress - Claude is actively working
-  - 🟡 Needs Response - Claude is waiting for your input
-  - 🟢 Completed - Task finished successfully
+  - 🟡 Needs Action - Response completed, user action needed
+  - ⚫ Session Ended - Session has ended
   - 🔴 Error - Task encountered an error
 - Keyboard navigation
 

@@ -54,8 +54,8 @@ Each line in the JSONL file contains:
 ### Status Values
 
 - `in_progress`: Claude is actively working
-- `waiting_user`: Claude is waiting for user response (Stop event)
-- `completed`: Session has ended
+- `stop`: Response completed, user action needed (Stop event)
+- `session_ended`: Session has ended (SessionEnd event)
 - `error`: An error occurred
 
 ## Integration with wtenv UI
