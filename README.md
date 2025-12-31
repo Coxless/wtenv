@@ -3,16 +3,27 @@
 > **Warning**
 > This tool is under development and not stable. Please use with caution.
 
-Fast and user-friendly git worktree management CLI tool.
+Fast and user-friendly git worktree management CLI tool with **parallel development control center** features.
 
 ## Features
 
+### Core Worktree Management
 - Easy worktree creation with branch management
 - Automatic environment file copying (based on config)
 - Post-create command execution
 - Interactive mode (no arguments required)
 - Progress indicators and colored output
 - Verbose and quiet output modes
+
+### **NEW: Parallel Development Control Center** 🚀
+- **Real-time worktree status monitoring** - See all worktrees at a glance with file changes and commit info
+- **Process management** - Track and manage processes running in each worktree
+- **Process control** - Kill processes by PID, worktree, or all at once
+- **Persistent process tracking** - Process information survives terminal sessions
+- **Claude Code integration** 🤖 - Track Claude Code task progress across all worktrees in real-time
+  - Monitor active AI coding sessions
+  - Get notified when Claude needs your response
+  - View task duration and status at a glance
 
 ## Installation
 
@@ -89,7 +100,84 @@ postCreate:
 
 ## Commands
 
-### `wtenv create [BRANCH] [PATH]`
+### Monitoring & Control Commands
+
+#### `wtenv status`
+
+Display detailed status of all worktrees with process information.
+
+```bash
+# Show worktree overview
+wtenv status
+
+# Verbose mode (shows full paths)
+wtenv status --verbose
+```
+
+**Output example:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees Overview (3 active, 2 processes)                  │
+├─────────────────────────────────────────────────────────────┤
+│ 🔄 feature-a                      main → feature-a          │
+│    Status: Modified (3 files)     Process: pnpm test        │
+│    Modified: 3 files  |  Last commit: 2h ago                │
+│                                                              │
+│ 🔨 feature-b                      main → feature-b          │
+│    Status: Running                Process: pnpm build       │
+│    Modified: 1 file   |  Last commit: 30m ago               │
+│                                                              │
+│ ✅ bugfix-123                     main → bugfix-123         │
+│    Status: Clean                  No process                │
+│    Last commit: 5m ago                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 📊 Total: 3 worktrees  |  Modified: 4 files                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### `wtenv ps [FILTER]`
+
+List all running processes in worktrees.
+
+```bash
+# Show all processes
+wtenv ps
+
+# Filter by worktree/branch name
+wtenv ps feature-a
+```
+
+**Output example:**
+```
+Active Processes in Worktrees:
+
+feature-a (PID: 12345)
+  Command: pnpm test:e2e
+  Started: 9m 12s ago
+  Working Dir: /home/user/projects/myapp-feature-a
+  Status: Running
+
+Total: 1 process
+```
+
+#### `wtenv kill [OPTIONS]`
+
+Stop running processes.
+
+```bash
+# Kill specific PID
+wtenv kill 12345
+
+# Kill all processes
+wtenv kill --all
+
+# Kill processes in specific worktree
+wtenv kill feature-a
+```
+
+### Worktree Management Commands
+
+#### `wtenv create [BRANCH] [PATH]`
 
 Create a new worktree.
 
@@ -154,6 +242,169 @@ wtenv config
 # Show detailed information
 wtenv config --verbose
 ```
+
+### `wtenv diff-env`
+
+Display environment variable differences between worktrees.
+
+```bash
+# Compare environment variables between two worktrees
+wtenv diff-env feature-a feature-b
+
+# Compare environment variables across all worktrees
+wtenv diff-env --all
+```
+
+**Output example:**
+```
+🔍 Differences in environment variables between feature-a and feature-b:
+
+.env:
+  API_PORT:
+    - 3001
+    + 3002
+  DATABASE_URL:
+    - postgresql://localhost/auth_db
+    + postgresql://localhost/payment_db
+
+.env.local:
+  DEBUG (feature-a only)
+    - true
+```
+
+### `wtenv ui`
+
+Manage worktrees with an interactive TUI, including Claude Code task monitoring.
+
+```bash
+# Launch TUI
+wtenv ui
+```
+
+**Key bindings:**
+- `↑/↓` or `j/k`: Navigate worktrees
+- `r`: Refresh status (reloads worktrees, processes, and Claude tasks)
+- `q` or `Esc`: Quit
+
+**Features:**
+- List all worktrees with status
+- Display detailed information for selected worktree
+- Real-time process count display
+- **Claude Code task tracking** - View active AI coding sessions
+  - 🔵 In Progress - Claude is actively working
+  - 🟡 Needs Action - Response completed, user action needed
+  - ⚫ Session Ended - Session has ended
+  - 🔴 Error - Task encountered an error
+- Keyboard navigation
+
+**Claude Code Integration:**
+
+The UI automatically detects and displays active Claude Code sessions from all your worktrees. To enable this feature:
+
+1. Copy the hook configuration:
+   ```bash
+   cp .claude/settings.json.example .claude/settings.json
+   # or for global configuration:
+   cp .claude/settings.json.example ~/.claude/settings.json
+   ```
+
+2. Ensure the hook script is executable:
+   ```bash
+   chmod +x .claude/hooks/track-progress.py
+   ```
+
+3. Start using Claude Code - tasks will automatically appear in `wtenv ui`
+
+See `.claude/hooks/README.md` for more details.
+
+### `wtenv analyze`
+
+Analyze worktree status, disk usage, and dependencies.
+
+```bash
+# Analyze worktrees
+wtenv analyze
+
+# Show detailed information
+wtenv analyze --detailed
+```
+
+**Output example:**
+```
+📊 Worktree Analysis
+
+  feature-auth
+    Disk: 12.45 MB
+    Last update: 2 days ago
+    Tags: node_modules, lockfile, build
+
+  feature-payment
+    Disk: 8.32 MB
+    Last update: Yesterday
+    Tags: node_modules, lockfile, merged
+
+Summary
+  Total worktrees: 3
+  Total disk usage: 35.12 MB
+  Merged branches: 1
+  Stale (>30 days): 0
+```
+
+### `wtenv clean`
+
+Clean up merged or stale worktrees.
+
+```bash
+# Dry run (show candidates)
+wtenv clean --dry-run
+
+# Remove only merged branches
+wtenv clean --merged-only
+
+# Remove worktrees not updated in 30 days
+wtenv clean --stale-days 30
+
+# Force removal without confirmation
+wtenv clean --force
+```
+
+### `wtenv notify`
+
+Execute commands with desktop notifications.
+
+```bash
+# Run build with notification
+wtenv notify "npm run build"
+
+# Run command in specific directory
+wtenv notify --dir ./worktrees/feature-a "npm test"
+
+# Notify only on success
+wtenv notify --notify-error false "npm run deploy"
+```
+
+### `wtenv pr`
+
+Create worktree from GitHub PR. Requires GitHub CLI (`gh`).
+
+```bash
+# Create worktree from PR #123
+wtenv pr 123
+
+# Specify custom path
+wtenv pr 456 /path/to/worktree
+```
+
+**Features:**
+- Automatically fetch PR information using GitHub CLI
+- Automatically fetch remote branch
+- Automatically create worktree
+- Automatically copy environment files
+- Automatically run post-create commands
+
+**Requirements:**
+- GitHub CLI (`gh`) must be installed
+- Must be authenticated with GitHub CLI (`gh auth login`)
 
 ## Global Options
 

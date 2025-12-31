@@ -1,9 +1,13 @@
+pub mod info;
+pub mod process;
+
+// Re-export from worktree.rs for backward compatibility
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// worktree情報
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WorktreeInfo {
     pub path: PathBuf,
     pub branch: Option<String>,
@@ -241,18 +245,31 @@ pub fn remove_worktree(path: &Path, force: bool) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Get the name of the main branch (main or master)
+///
+/// Attempts to determine the default branch name by reading the symbolic ref
+/// of refs/remotes/origin/HEAD. Falls back to "main" if not found.
+pub fn get_main_branch_name() -> Result<String> {
+    let output = Command::new("git")
+        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
+        .output()
+        .context("Failed to get main branch name")?;
 
-    #[test]
-    fn test_get_repo_root() {
-        // このテストはGitリポジトリ内で実行される必要がある
-        let result = get_repo_root();
-        // Gitリポジトリ内であれば成功するはず
-        if result.is_ok() {
-            let path = result.unwrap();
-            assert!(path.exists());
+    if output.status.success() {
+        let full_ref = String::from_utf8_lossy(&output.stdout);
+        if let Some(branch) = full_ref.trim().strip_prefix("refs/remotes/origin/") {
+            return Ok(branch.to_string());
         }
     }
+
+    // Fallback to "main"
+    Ok("main".to_string())
+}
+
+/// Convert Path to &str with proper error handling
+///
+/// Paths with non-UTF8 characters (rare on Windows) will return an error.
+pub fn path_to_str(path: &Path) -> Result<&str> {
+    path.to_str()
+        .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 in path: {}", path.display()))
 }

@@ -3,16 +3,23 @@
 > **Warning**
 > このツールは開発中であり、安定版ではありません。使用する際は慎重に行ってください。
 
-高速でユーザーフレンドリーなgit worktree管理CLIツール。
+高速でユーザーフレンドリーなgit worktree管理CLIツール。**並列開発のコントロールセンター**機能を搭載。
 
 ## 機能
 
+### コアworktree管理機能
 - ブランチ管理を含む簡単なworktree作成
 - 環境ファイルの自動コピー（設定ベース）
 - post-createコマンドの実行
 - 対話モード（引数なしで実行可能）
 - プログレス表示とカラー出力
 - 詳細/サイレント出力モード
+
+### **NEW: 並列開発コントロールセンター** 🚀
+- **リアルタイムworktree状態監視** - すべてのworktreeの状態を一目で確認
+- **プロセス管理** - 各worktreeで実行中のプロセスを追跡・管理
+- **プロセス制御** - PID、worktree、または一括でプロセスを停止
+- **永続的なプロセス追跡** - ターミナルセッションを超えてプロセス情報を保持
 
 ## インストール
 
@@ -89,7 +96,84 @@ postCreate:
 
 ## コマンド
 
-### `wtenv create [BRANCH] [PATH]`
+### 監視・制御コマンド
+
+#### `wtenv status`
+
+すべてのworktreeの詳細な状態とプロセス情報を表示。
+
+```bash
+# worktree概要を表示
+wtenv status
+
+# 詳細モード（フルパスを表示）
+wtenv status --verbose
+```
+
+**出力例:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees Overview (3 active, 2 processes)                  │
+├─────────────────────────────────────────────────────────────┤
+│ 🔄 feature-a                      main → feature-a          │
+│    Status: Modified (3 files)     Process: pnpm test        │
+│    Modified: 3 files  |  Last commit: 2h ago                │
+│                                                              │
+│ 🔨 feature-b                      main → feature-b          │
+│    Status: Running                Process: pnpm build       │
+│    Modified: 1 file   |  Last commit: 30m ago               │
+│                                                              │
+│ ✅ bugfix-123                     main → bugfix-123         │
+│    Status: Clean                  No process                │
+│    Last commit: 5m ago                                      │
+├─────────────────────────────────────────────────────────────┤
+│ 📊 Total: 3 worktrees  |  Modified: 4 files                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### `wtenv ps [FILTER]`
+
+worktreeで実行中のすべてのプロセスを一覧表示。
+
+```bash
+# すべてのプロセスを表示
+wtenv ps
+
+# worktree/ブランチ名でフィルタ
+wtenv ps feature-a
+```
+
+**出力例:**
+```
+Active Processes in Worktrees:
+
+feature-a (PID: 12345)
+  Command: pnpm test:e2e
+  Started: 9m 12s ago
+  Working Dir: /home/user/projects/myapp-feature-a
+  Status: Running
+
+Total: 1 process
+```
+
+#### `wtenv kill [OPTIONS]`
+
+実行中のプロセスを停止。
+
+```bash
+# 特定のPIDを停止
+wtenv kill 12345
+
+# すべてのプロセスを停止
+wtenv kill --all
+
+# 特定のworktreeのプロセスを停止
+wtenv kill feature-a
+```
+
+### Worktree管理コマンド
+
+#### `wtenv create [BRANCH] [PATH]`
 
 新しいworktreeを作成。
 
@@ -154,6 +238,144 @@ wtenv config
 # 詳細情報を表示
 wtenv config --verbose
 ```
+
+### `wtenv diff-env`
+
+worktree間の環境変数の違いを表示。
+
+```bash
+# 2つのworktree間の環境変数を比較
+wtenv diff-env feature-a feature-b
+
+# すべてのworktreeの環境変数を比較
+wtenv diff-env --all
+```
+
+**出力例:**
+```
+🔍 feature-a と feature-b の環境変数の違い:
+
+.env:
+  API_PORT:
+    - 3001
+    + 3002
+  DATABASE_URL:
+    - postgresql://localhost/auth_db
+    + postgresql://localhost/payment_db
+
+.env.local:
+  DEBUG (feature-aのみ)
+    - true
+```
+
+### `wtenv ui`
+
+インタラクティブなTUIでworktreeを管理。
+
+```bash
+# TUIを起動
+wtenv ui
+```
+
+**キー操作:**
+- `↑/↓` または `j/k`: worktree選択
+- `r`: 状態を更新
+- `q` または `Esc`: 終了
+
+**機能:**
+- すべてのworktreeを一覧表示
+- 選択したworktreeの詳細情報を表示
+- 実行中プロセス数をリアルタイム表示
+- キーボードナビゲーション
+
+### `wtenv analyze`
+
+worktreeの状態を分析し、ディスク使用量や依存関係の状態を表示。
+
+```bash
+# worktreeを分析
+wtenv analyze
+
+# 詳細情報を表示
+wtenv analyze --detailed
+```
+
+**出力例:**
+```
+📊 Worktree Analysis
+
+  feature-auth
+    Disk: 12.45 MB
+    Last update: 2 days ago
+    Tags: node_modules, lockfile, build
+
+  feature-payment
+    Disk: 8.32 MB
+    Last update: Yesterday
+    Tags: node_modules, lockfile, merged
+
+Summary
+  Total worktrees: 3
+  Total disk usage: 35.12 MB
+  Merged branches: 1
+  Stale (>30 days): 0
+```
+
+### `wtenv clean`
+
+マージ済みまたは長期間更新されていないworktreeを削除。
+
+```bash
+# ドライラン（削除候補を表示）
+wtenv clean --dry-run
+
+# マージ済みブランチのみ削除
+wtenv clean --merged-only
+
+# 30日以上更新されていないworktreeを削除
+wtenv clean --stale-days 30
+
+# 確認なしで削除
+wtenv clean --force
+```
+
+### `wtenv notify`
+
+コマンドを実行し、完了時にデスクトップ通知を送信。
+
+```bash
+# ビルドコマンドを実行して通知
+wtenv notify "npm run build"
+
+# 指定ディレクトリでコマンドを実行
+wtenv notify --dir ./worktrees/feature-a "npm test"
+
+# 成功時のみ通知
+wtenv notify --notify-error false "npm run deploy"
+```
+
+### `wtenv pr`
+
+GitHub PRからworktreeを作成。GitHub CLI (`gh`)が必要です。
+
+```bash
+# PR #123からworktreeを作成
+wtenv pr 123
+
+# カスタムパスを指定
+wtenv pr 456 /path/to/worktree
+```
+
+**機能:**
+- GitHub CLIを使ってPR情報を自動取得
+- リモートブランチを自動フェッチ
+- worktreeを自動作成
+- 環境ファイルの自動コピー
+- post-createコマンドの自動実行
+
+**必要条件:**
+- GitHub CLI (`gh`) がインストールされていること
+- GitHub CLIで認証済みであること (`gh auth login`)
 
 ## グローバルオプション
 

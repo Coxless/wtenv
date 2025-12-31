@@ -39,6 +39,98 @@ enum Commands {
     Init(InitArgs),
     /// 設定ファイルを表示
     Config,
+    /// worktree状態の詳細を表示
+    Status,
+    /// 実行中プロセス一覧を表示
+    Ps(PsArgs),
+    /// プロセスを停止
+    Kill(KillArgs),
+    /// worktree間の環境変数を比較
+    DiffEnv(DiffEnvArgs),
+    /// インタラクティブTUI
+    Ui,
+    /// worktreeの分析
+    Analyze(AnalyzeArgs),
+    /// 不要なworktreeをクリーンアップ
+    Clean(CleanArgs),
+    /// コマンド実行と通知
+    Notify(NotifyArgs),
+    /// PRからworktreeを作成
+    Pr(PrArgs),
+}
+
+#[derive(Args)]
+struct PsArgs {
+    /// worktreeフィルタ（ブランチ名またはパス）
+    filter: Option<String>,
+}
+
+#[derive(Args)]
+struct KillArgs {
+    /// プロセスID
+    pid: Option<u32>,
+    /// 全プロセスを停止
+    #[arg(long)]
+    all: bool,
+    /// worktreeフィルタ（ブランチ名またはパス）
+    filter: Option<String>,
+}
+
+#[derive(Args)]
+struct DiffEnvArgs {
+    /// 1つ目のworktree（ブランチ名またはパス）
+    worktree1: Option<String>,
+    /// 2つ目のworktree（ブランチ名またはパス）
+    worktree2: Option<String>,
+    /// 全worktreeの環境変数を比較
+    #[arg(long)]
+    all: bool,
+}
+
+#[derive(Args)]
+struct AnalyzeArgs {
+    /// 詳細情報を表示
+    #[arg(short, long)]
+    detailed: bool,
+}
+
+#[derive(Args)]
+struct CleanArgs {
+    /// ドライラン（実際には削除しない）
+    #[arg(long)]
+    dry_run: bool,
+    /// マージ済みブランチのみ削除
+    #[arg(long)]
+    merged_only: bool,
+    /// 指定日数以上更新されていないworktreeを削除
+    #[arg(long)]
+    stale_days: Option<u64>,
+    /// 確認なしで削除
+    #[arg(short, long)]
+    force: bool,
+}
+
+#[derive(Args)]
+struct NotifyArgs {
+    /// 実行するコマンド
+    command: String,
+    /// 作業ディレクトリ（デフォルト: カレントディレクトリ）
+    #[arg(short, long)]
+    dir: Option<String>,
+    /// 成功時に通知
+    #[arg(long, default_value = "true")]
+    notify_success: bool,
+    /// エラー時に通知
+    #[arg(long, default_value = "true")]
+    notify_error: bool,
+}
+
+#[derive(Args)]
+struct PrArgs {
+    /// PR番号
+    pr_number: u32,
+    /// worktreeのパス（省略時は自動生成）
+    path: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -72,6 +164,9 @@ struct InitArgs {
     /// 既存設定を上書き
     #[arg(short, long)]
     force: bool,
+    /// Claude Code hooks も作成
+    #[arg(long)]
+    hooks: bool,
 }
 
 /// 出力設定
@@ -105,6 +200,15 @@ fn main() -> Result<()> {
         Commands::Remove(args) => cmd_remove(args, opts),
         Commands::Init(args) => cmd_init(args, opts),
         Commands::Config => cmd_config(opts),
+        Commands::Status => cmd_status(opts),
+        Commands::Ps(args) => cmd_ps(args),
+        Commands::Kill(args) => cmd_kill(args),
+        Commands::DiffEnv(args) => cmd_diff_env(args),
+        Commands::Ui => cmd_ui(),
+        Commands::Analyze(args) => cmd_analyze(args),
+        Commands::Clean(args) => cmd_clean(args),
+        Commands::Notify(args) => cmd_notify(args),
+        Commands::Pr(args) => cmd_pr(args, opts),
     }
 }
 
@@ -354,6 +458,40 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
         );
     }
 
+    // --hooks フラグが指定された場合、Claude Code hooks も作成
+    if args.hooks {
+        if opts.should_print() {
+            println!("\n{}", "🪝 Claude Code hooks を作成中...".blue());
+        }
+
+        let hook_files = config::create_claude_hooks(&current_dir, force)?;
+
+        if opts.should_print() {
+            println!("{}", "✅ Claude Code hooks を作成しました:".green());
+            for file in &hook_files {
+                println!(
+                    "  {} {}",
+                    "→".bright_black(),
+                    file.display().to_string().cyan()
+                );
+            }
+
+            println!("\n{}", "📋 次のステップ:".blue());
+            println!(
+                "  {} プロジェクトで hooks を有効にする: cp .claude/settings.json から設定をコピー",
+                "1.".bright_black()
+            );
+            println!(
+                "  {} グローバルで hooks を有効にする: cp .claude/settings.json ~/.claude/settings.json",
+                "2.".bright_black()
+            );
+            println!(
+                "  {} hooks をカスタマイズ: .claude/hooks/ 内のスクリプトを編集",
+                "3.".bright_black()
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -400,4 +538,69 @@ fn cmd_config(opts: OutputOptions) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// statusサブコマンド
+fn cmd_status(opts: OutputOptions) -> Result<()> {
+    commands::status::execute(opts.should_print_verbose())
+}
+
+/// psサブコマンド
+fn cmd_ps(args: PsArgs) -> Result<()> {
+    commands::ps::execute(args.filter)
+}
+
+/// killサブコマンド
+fn cmd_kill(args: KillArgs) -> Result<()> {
+    commands::ps::kill(args.pid, args.all, args.filter)
+}
+
+/// diff-envサブコマンド
+fn cmd_diff_env(args: DiffEnvArgs) -> Result<()> {
+    commands::diff_env::execute(args.worktree1, args.worktree2, args.all)
+}
+
+/// uiサブコマンド
+fn cmd_ui() -> Result<()> {
+    commands::ui::execute()
+}
+
+/// analyzeサブコマンド
+fn cmd_analyze(args: AnalyzeArgs) -> Result<()> {
+    commands::analyze::execute(args.detailed)
+}
+
+/// cleanサブコマンド
+fn cmd_clean(args: CleanArgs) -> Result<()> {
+    use crate::commands::clean::CleanOptions;
+
+    let opts = CleanOptions {
+        dry_run: args.dry_run,
+        merged_only: args.merged_only,
+        stale_days: args.stale_days,
+        force: args.force,
+    };
+
+    commands::clean::execute(opts)
+}
+
+/// notifyサブコマンド
+fn cmd_notify(args: NotifyArgs) -> Result<()> {
+    let working_dir = if let Some(dir) = args.dir {
+        PathBuf::from(dir)
+    } else {
+        std::env::current_dir()?
+    };
+
+    commands::notify::execute_with_notification(
+        &args.command,
+        &working_dir,
+        args.notify_success,
+        args.notify_error,
+    )
+}
+
+/// prサブコマンド
+fn cmd_pr(args: PrArgs, opts: OutputOptions) -> Result<()> {
+    commands::pr::execute(args.pr_number, args.path, opts.should_print_verbose())
 }

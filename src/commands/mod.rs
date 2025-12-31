@@ -1,3 +1,14 @@
+pub mod analyze;
+pub mod claude_task;
+pub mod clean;
+pub mod diff_env;
+pub mod notify;
+pub mod pr;
+pub mod ps;
+pub mod status;
+pub mod ui;
+
+// Re-export from commands.rs for backward compatibility
 use anyhow::{Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
