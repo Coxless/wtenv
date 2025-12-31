@@ -35,10 +35,11 @@ def get_task_status(hook_event: str, tool_name: str = "", hook_data: dict = None
     """
     Determine task status based on hook event and tool name.
 
-    Returns: "in_progress" | "stop" | "session_ended" | "error"
+    Returns: "in_progress" | "stop" | "session_ended" | "error" | None
     """
     if hook_event == "SessionStart":
-        return "in_progress"
+        # Don't set status on session start - wait for first tool use
+        return None
     elif hook_event == "Stop":
         # Response completed, waiting for user action
         return "stop"
