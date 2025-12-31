@@ -202,6 +202,21 @@ impl ClaudeTask {
 
         usage
     }
+
+    /// Check if task has actually started (not just SessionStart)
+    pub fn has_started(&self) -> bool {
+        // Task has started if there are events beyond SessionStart
+        if self.events.len() > 1 {
+            return true;
+        }
+
+        // If only one event, check if it's not SessionStart
+        if let Some(first_event) = self.events.first() {
+            first_event.event != "SessionStart"
+        } else {
+            false
+        }
+    }
 }
 
 /// Manager for multiple Claude Code task sessions
@@ -322,11 +337,11 @@ impl TaskManager {
         tasks
     }
 
-    /// Get active tasks (not completed)
+    /// Get active tasks (not completed and actually started)
     pub fn active_tasks(&self) -> Vec<&ClaudeTask> {
         self.all_tasks()
             .into_iter()
-            .filter(|t| t.status != TaskStatus::SessionEnded)
+            .filter(|t| t.status != TaskStatus::SessionEnded && t.has_started())
             .collect()
     }
 
@@ -702,5 +717,83 @@ mod tests {
         assert_eq!(task.status, TaskStatus::Stop);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_has_started() {
+        // Task with only SessionStart should not be started
+        let session_start_only = TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        };
+        let task = ClaudeTask::new(session_start_only);
+        assert!(!task.has_started());
+
+        // Task with SessionStart + PostToolUse should be started
+        let mut task = ClaudeTask::new(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        task.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "PostToolUse".to_string(),
+            tool: Some("Read".to_string()),
+            status: Some(TaskStatus::InProgress),
+            message: "Read file".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        assert!(task.has_started());
+    }
+
+    #[test]
+    fn test_active_tasks_excludes_session_start_only() {
+        let mut manager = TaskManager::new();
+
+        // Add task with only SessionStart
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "not_started".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+
+        // Add task with SessionStart + PostToolUse
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "started".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "started".to_string(),
+            event: "PostToolUse".to_string(),
+            tool: Some("Read".to_string()),
+            status: Some(TaskStatus::InProgress),
+            message: "Read file".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+
+        // Only the started task should be active
+        let active = manager.active_tasks();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].session_id, "started");
     }
 }
