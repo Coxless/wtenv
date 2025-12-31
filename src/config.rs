@@ -32,6 +32,21 @@ const CLAUDE_SETTINGS_TEMPLATE: &str = r#"{
           {
             "type": "command",
             "command": ".claude/hooks/session-init.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-progress.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-progress.py"
           }
         ]
       }
@@ -42,7 +57,32 @@ const CLAUDE_SETTINGS_TEMPLATE: &str = r#"{
         "hooks": [
           {
             "type": "command",
+            "command": ".claude/hooks/track-progress.py"
+          },
+          {
+            "type": "command",
             "command": "~/.claude/stop-hook-git-check.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-progress.py"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/track-progress.py"
           }
         ]
       }
