@@ -469,7 +469,11 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
         if opts.should_print() {
             println!("{}", "✅ Claude Code hooks を作成しました:".green());
             for file in &hook_files {
-                println!("  {} {}", "→".bright_black(), file.display().to_string().cyan());
+                println!(
+                    "  {} {}",
+                    "→".bright_black(),
+                    file.display().to_string().cyan()
+                );
             }
 
             println!("\n{}", "📋 次のステップ:".blue());

@@ -461,8 +461,12 @@ pub fn create_claude_hooks(dir: &Path, force: bool) -> Result<Vec<PathBuf>> {
     // .claude ディレクトリ作成
     let claude_dir = dir.join(".claude");
     if !claude_dir.exists() {
-        fs::create_dir_all(&claude_dir)
-            .with_context(|| format!(".claude ディレクトリの作成に失敗しました: {}", claude_dir.display()))?;
+        fs::create_dir_all(&claude_dir).with_context(|| {
+            format!(
+                ".claude ディレクトリの作成に失敗しました: {}",
+                claude_dir.display()
+            )
+        })?;
     }
 
     // .claude/hooks ディレクトリ作成
