@@ -164,6 +164,9 @@ struct InitArgs {
     /// 既存設定を上書き
     #[arg(short, long)]
     force: bool,
+    /// Claude Code hooks も作成
+    #[arg(long)]
+    hooks: bool,
 }
 
 /// 出力設定
@@ -453,6 +456,40 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
             "✅ 設定ファイルを作成しました:".green(),
             created_path.display().to_string().cyan()
         );
+    }
+
+    // --hooks フラグが指定された場合、Claude Code hooks も作成
+    if args.hooks {
+        if opts.should_print() {
+            println!("\n{}", "🪝 Claude Code hooks を作成中...".blue());
+        }
+
+        let hook_files = config::create_claude_hooks(&current_dir, force)?;
+
+        if opts.should_print() {
+            println!("{}", "✅ Claude Code hooks を作成しました:".green());
+            for file in &hook_files {
+                println!(
+                    "  {} {}",
+                    "→".bright_black(),
+                    file.display().to_string().cyan()
+                );
+            }
+
+            println!("\n{}", "📋 次のステップ:".blue());
+            println!(
+                "  {} プロジェクトで hooks を有効にする: cp .claude/settings.json から設定をコピー",
+                "1.".bright_black()
+            );
+            println!(
+                "  {} グローバルで hooks を有効にする: cp .claude/settings.json ~/.claude/settings.json",
+                "2.".bright_black()
+            );
+            println!(
+                "  {} hooks をカスタマイズ: .claude/hooks/ 内のスクリプトを編集",
+                "3.".bright_black()
+            );
+        }
     }
 
     Ok(())
