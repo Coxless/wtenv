@@ -8,5 +8,5 @@ exclude:
   - .env.production
 
 postCreate:
-  - command: npm install
-    description: "依存関係をインストール中..."
+  - command: echo "postCreate finished"
+    description: "Post-create hook executed"
