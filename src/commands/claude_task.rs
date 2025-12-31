@@ -67,8 +67,9 @@ pub struct TaskEvent {
     /// Tool name (Write, Edit, Bash, etc.), if applicable
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool: Option<String>,
-    /// Current task status
-    pub status: TaskStatus,
+    /// Current task status (optional for some notification events)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<TaskStatus>,
     /// Human-readable event message
     pub message: String,
     /// Working directory where event occurred
@@ -101,7 +102,8 @@ impl ClaudeTask {
     fn new(event: TaskEvent) -> Self {
         let start_time = event.timestamp;
         let last_update = event.timestamp;
-        let status = event.status;
+        // Default to InProgress if status is not provided
+        let status = event.status.unwrap_or(TaskStatus::InProgress);
         let worktree_path = event.cwd.clone();
         let last_message = event.message.clone();
         let session_id = event.session_id.clone();
@@ -120,7 +122,10 @@ impl ClaudeTask {
     /// Add a new event to this task
     fn add_event(&mut self, event: TaskEvent) {
         self.last_update = event.timestamp;
-        self.status = event.status;
+        // Only update status if the event has one
+        if let Some(status) = event.status {
+            self.status = status;
+        }
         self.worktree_path = event.cwd.clone();
 
         // Update last message if it's meaningful (not empty)
@@ -444,7 +449,7 @@ mod tests {
             session_id: "test".to_string(),
             event: "SessionStart".to_string(),
             tool: None,
-            status: TaskStatus::InProgress,
+            status: Some(TaskStatus::InProgress),
             message: "Test".to_string(),
             cwd: "/tmp".to_string(),
         };
@@ -471,7 +476,7 @@ mod tests {
             session_id: "test".to_string(),
             event: "SessionStart".to_string(),
             tool: None,
-            status: TaskStatus::InProgress,
+            status: Some(TaskStatus::InProgress),
             message: "Test".to_string(),
             cwd: "/home/user/feature".to_string(),
         };
@@ -539,7 +544,7 @@ mod tests {
                 session_id: "test".to_string(),
                 event: "PostToolUse".to_string(),
                 tool: Some(tool.to_string()),
-                status: TaskStatus::InProgress,
+                status: Some(TaskStatus::InProgress),
                 message: format!("Event {}", i),
                 cwd: "/tmp".to_string(),
             });
@@ -570,7 +575,7 @@ mod tests {
             session_id: "test_session".to_string(),
             event: "SessionStart".to_string(),
             tool: None,
-            status: TaskStatus::InProgress,
+            status: Some(TaskStatus::InProgress),
             message: "Test".to_string(),
             cwd: "/tmp".to_string(),
         };
@@ -619,7 +624,7 @@ mod tests {
                 session_id: format!("session{}", i),
                 event: "SessionStart".to_string(),
                 tool: None,
-                status: *status,
+                status: Some(*status),
                 message: "Test".to_string(),
                 cwd: "/tmp".to_string(),
             };
@@ -631,5 +636,71 @@ mod tests {
         assert_eq!(counts.get(&TaskStatus::Stop), Some(&1));
         assert_eq!(counts.get(&TaskStatus::SessionEnded), Some(&1));
         assert_eq!(counts.get(&TaskStatus::Error), None);
+    }
+
+    #[test]
+    fn test_event_without_status() {
+        // Test that events without status field are handled correctly
+        let event_with_status = TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: Some(TaskStatus::InProgress),
+            message: "Started".to_string(),
+            cwd: "/tmp".to_string(),
+        };
+
+        let event_without_status = TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "Notification".to_string(),
+            tool: None,
+            status: None,
+            message: "Unknown event".to_string(),
+            cwd: "/tmp".to_string(),
+        };
+
+        let mut task = ClaudeTask::new(event_with_status);
+        assert_eq!(task.status, TaskStatus::InProgress);
+
+        // Adding event without status should not change the current status
+        task.add_event(event_without_status);
+        assert_eq!(task.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_jsonl_without_status_field() -> Result<()> {
+        // Test parsing JSONL with missing status field
+        let temp_dir = TempDir::new()?;
+        let file_path = temp_dir.path().join("test.jsonl");
+
+        let mut file = fs::File::create(&file_path)?;
+        // Line with status
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-31T10:00:00Z","session_id":"test","event":"SessionStart","tool":null,"status":"in_progress","message":"Started","cwd":"/tmp"}}"#
+        )?;
+        // Line without status (Notification event)
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-31T10:00:05Z","session_id":"test","event":"Notification","tool":null,"message":"Unknown event","cwd":"/tmp"}}"#
+        )?;
+        // Line with status again
+        writeln!(
+            file,
+            r#"{{"timestamp":"2025-12-31T10:00:10Z","session_id":"test","event":"Stop","tool":null,"status":"stop","message":"Waiting","cwd":"/tmp"}}"#
+        )?;
+        drop(file);
+
+        let mut manager = TaskManager::new();
+        manager.load_session_file(&file_path)?;
+
+        let task = manager.get_task("test").expect("Task should exist");
+        assert_eq!(task.events.len(), 3);
+        // Final status should be "stop" from the last event with status
+        assert_eq!(task.status, TaskStatus::Stop);
+
+        Ok(())
     }
 }
