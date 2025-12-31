@@ -13,6 +13,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use std::time::{Duration, Instant};
 
 use crate::commands::claude_task::TaskManager;
 use crate::worktree::{self, info::WorktreeDetail, process::ProcessManager};
@@ -25,6 +26,8 @@ struct App {
     selected_index: usize,
     list_state: ListState,
     should_quit: bool,
+    last_refresh: Instant,
+    auto_refresh_interval: Duration,
 }
 
 impl App {
@@ -65,6 +68,8 @@ impl App {
             selected_index: 0,
             list_state,
             should_quit: false,
+            last_refresh: Instant::now(),
+            auto_refresh_interval: Duration::from_secs(1), // Auto-refresh every 1 second
         })
     }
 
@@ -139,6 +144,17 @@ impl App {
             self.list_state.select(Some(self.selected_index));
         }
 
+        // Update last refresh time
+        self.last_refresh = Instant::now();
+
+        Ok(())
+    }
+
+    /// Check if auto-refresh is needed and perform it
+    fn try_auto_refresh(&mut self) -> Result<()> {
+        if self.last_refresh.elapsed() >= self.auto_refresh_interval {
+            self.refresh()?;
+        }
         Ok(())
     }
 }
@@ -176,7 +192,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut app: Ap
     loop {
         terminal.draw(|f| ui(f, &mut app))?;
 
-        if event::poll(std::time::Duration::from_millis(100))? {
+        if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
@@ -195,6 +211,9 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut app: Ap
                 }
             }
         }
+
+        // Auto-refresh at regular intervals
+        app.try_auto_refresh()?;
 
         if app.should_quit {
             break;
