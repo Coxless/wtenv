@@ -13,10 +13,10 @@ use std::time::SystemTime;
 pub enum TaskStatus {
     /// Task is actively running
     InProgress,
-    /// Claude is waiting for user response
-    WaitingUser,
-    /// Task has completed successfully
-    Completed,
+    /// Response completed, waiting for user action
+    Stop,
+    /// Session has ended
+    SessionEnded,
     /// Task encountered an error
     Error,
 }
@@ -27,8 +27,8 @@ impl TaskStatus {
     pub fn emoji(&self) -> &str {
         match self {
             TaskStatus::InProgress => "🔵",
-            TaskStatus::WaitingUser => "🟡",
-            TaskStatus::Completed => "🟢",
+            TaskStatus::Stop => "🟡",
+            TaskStatus::SessionEnded => "⚫",
             TaskStatus::Error => "🔴",
         }
     }
@@ -37,8 +37,8 @@ impl TaskStatus {
     pub fn color_name(&self) -> &str {
         match self {
             TaskStatus::InProgress => "blue",
-            TaskStatus::WaitingUser => "yellow",
-            TaskStatus::Completed => "green",
+            TaskStatus::Stop => "yellow",
+            TaskStatus::SessionEnded => "gray",
             TaskStatus::Error => "red",
         }
     }
@@ -47,8 +47,8 @@ impl TaskStatus {
     pub fn description(&self) -> &str {
         match self {
             TaskStatus::InProgress => "In Progress",
-            TaskStatus::WaitingUser => "Waiting for User",
-            TaskStatus::Completed => "Completed",
+            TaskStatus::Stop => "Needs Action",
+            TaskStatus::SessionEnded => "Session Ended",
             TaskStatus::Error => "Error",
         }
     }
@@ -321,7 +321,7 @@ impl TaskManager {
     pub fn active_tasks(&self) -> Vec<&ClaudeTask> {
         self.all_tasks()
             .into_iter()
-            .filter(|t| t.status != TaskStatus::Completed)
+            .filter(|t| t.status != TaskStatus::SessionEnded)
             .collect()
     }
 
@@ -421,20 +421,20 @@ mod tests {
     #[test]
     fn test_task_status_emoji() {
         assert_eq!(TaskStatus::InProgress.emoji(), "🔵");
-        assert_eq!(TaskStatus::WaitingUser.emoji(), "🟡");
-        assert_eq!(TaskStatus::Completed.emoji(), "🟢");
+        assert_eq!(TaskStatus::Stop.emoji(), "🟡");
+        assert_eq!(TaskStatus::SessionEnded.emoji(), "⚫");
         assert_eq!(TaskStatus::Error.emoji(), "🔴");
     }
 
     #[test]
     fn test_task_status_serialization() {
         // Test JSON serialization/deserialization
-        let status = TaskStatus::WaitingUser;
+        let status = TaskStatus::Stop;
         let json = serde_json::to_string(&status).unwrap();
-        assert_eq!(json, "\"waiting_user\"");
+        assert_eq!(json, "\"stop\"");
 
         let deserialized: TaskStatus = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized, TaskStatus::WaitingUser);
+        assert_eq!(deserialized, TaskStatus::Stop);
     }
 
     #[test]
@@ -504,12 +504,12 @@ mod tests {
         writeln!(file, "this is not valid json")?;
         writeln!(
             file,
-            r#"{{"timestamp":"2025-12-30T10:01:00Z","session_id":"test","event":"Stop","tool":null,"status":"waiting_user","message":"Valid","cwd":"/tmp"}}"#
+            r#"{{"timestamp":"2025-12-30T10:01:00Z","session_id":"test","event":"Stop","tool":null,"status":"stop","message":"Valid","cwd":"/tmp"}}"#
         )?;
         writeln!(file, "{{malformed json without closing brace")?;
         writeln!(
             file,
-            r#"{{"timestamp":"2025-12-30T10:02:00Z","session_id":"test","event":"SessionEnd","tool":null,"status":"completed","message":"Valid","cwd":"/tmp"}}"#
+            r#"{{"timestamp":"2025-12-30T10:02:00Z","session_id":"test","event":"SessionEnd","tool":null,"status":"session_ended","message":"Valid","cwd":"/tmp"}}"#
         )?;
         drop(file);
 
@@ -520,7 +520,7 @@ mod tests {
         // Should have loaded 3 valid events
         let task = manager.get_task("test").expect("Task should exist");
         assert_eq!(task.events.len(), 3);
-        assert_eq!(task.status, TaskStatus::Completed);
+        assert_eq!(task.status, TaskStatus::SessionEnded);
 
         Ok(())
     }
@@ -608,8 +608,8 @@ mod tests {
         for (i, status) in [
             TaskStatus::InProgress,
             TaskStatus::InProgress,
-            TaskStatus::WaitingUser,
-            TaskStatus::Completed,
+            TaskStatus::Stop,
+            TaskStatus::SessionEnded,
         ]
         .iter()
         .enumerate()
@@ -628,8 +628,8 @@ mod tests {
 
         let counts = manager.status_counts();
         assert_eq!(counts.get(&TaskStatus::InProgress), Some(&2));
-        assert_eq!(counts.get(&TaskStatus::WaitingUser), Some(&1));
-        assert_eq!(counts.get(&TaskStatus::Completed), Some(&1));
+        assert_eq!(counts.get(&TaskStatus::Stop), Some(&1));
+        assert_eq!(counts.get(&TaskStatus::SessionEnded), Some(&1));
         assert_eq!(counts.get(&TaskStatus::Error), None);
     }
 }
