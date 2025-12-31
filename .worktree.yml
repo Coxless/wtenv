@@ -1,23 +1,12 @@
 version: 1
 
 copy:
-  - "**/.env"
-  - "**/.env.local"
+  - .env
+  - .env.local
 
 exclude:
-  - "**/.env.production"
+  - .env.production
 
 postCreate:
-  - command: mise trust && mise install
-    description: "Miseでツールをインストール中..."
-
-  - command: cargo install --locked --path .
-    description: "Rustの依存関係をインストール中..."
-
-  - command: cd test-project && mise trust && mise install
-    description: "Miseでtest-projectにツールをインストール中..."
-
-  - command: cd test-project && npm install
-    description: "test-projectで依存関係をインストール中..."
-
-  - command: echo "setup complete!"
+  - command: npm install
+    description: "依存関係をインストール中..."
