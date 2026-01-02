@@ -796,4 +796,62 @@ mod tests {
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].session_id, "started");
     }
+
+    #[test]
+    fn test_user_prompt_submit_starts_task() {
+        // Task with SessionStart + UserPromptSubmit should be started
+        let mut task = ClaudeTask::new(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        assert!(!task.has_started());
+
+        task.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "test".to_string(),
+            event: "UserPromptSubmit".to_string(),
+            tool: None,
+            status: Some(TaskStatus::InProgress),
+            message: "Processing user prompt".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        assert!(task.has_started());
+        assert_eq!(task.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_active_tasks_includes_user_prompt_submit() {
+        let mut manager = TaskManager::new();
+
+        // Add task with SessionStart + UserPromptSubmit
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "prompt_submitted".to_string(),
+            event: "SessionStart".to_string(),
+            tool: None,
+            status: None,
+            message: "Session started".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "prompt_submitted".to_string(),
+            event: "UserPromptSubmit".to_string(),
+            tool: None,
+            status: Some(TaskStatus::InProgress),
+            message: "Processing user prompt".to_string(),
+            cwd: "/tmp".to_string(),
+        });
+
+        // Task should be active after UserPromptSubmit
+        let active = manager.active_tasks();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].session_id, "prompt_submitted");
+        assert_eq!(active[0].status, TaskStatus::InProgress);
+    }
 }
