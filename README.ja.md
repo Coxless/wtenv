@@ -20,8 +20,19 @@
 - **プロセス管理** - 各worktreeで実行中のプロセスを追跡・管理
 - **プロセス制御** - PID、worktree、または一括でプロセスを停止
 - **永続的なプロセス追跡** - ターミナルセッションを超えてプロセス情報を保持
+- **Claude Code連携** 🤖 - すべてのworktreeでClaude Codeのタスク進捗をリアルタイム追跡
+  - アクティブなAIコーディングセッションを監視
+  - Claudeが応答待ちの時に通知
+  - タスクの実行時間とステータスを一目で確認
 
 ## インストール
+
+### 必要な環境
+
+- **Rust** 1.91.0以降（ソースからビルドする場合）
+- **Python** 3.6以降（Claude Code連携フック用）
+- **Git** 2.17以降（worktreeサポート用）
+- **GitHub CLI** (`gh`) - オプション、`wtenv pr`コマンドのみで必要
 
 ### ソースから
 
@@ -34,6 +45,88 @@ cargo install --path .
 ### バイナリから
 
 [Releases](https://github.com/USERNAME/wtenv/releases)からダウンロードしてPATHに配置。
+
+## セットアップ
+
+### 基本セットアップ
+
+インストール後、リポジトリで設定ファイルを初期化します：
+
+```bash
+# gitリポジトリに移動
+cd /path/to/your/repo
+
+# wtenv設定を初期化
+wtenv init
+```
+
+これにより`.worktree.yml`ファイルが作成され、ファイルのコピーやpost-createコマンドを設定できます。
+
+### Claude Code フックセットアップ
+
+リアルタイムタスク追跡のためにClaude Code連携を有効にする方法：
+
+#### 1. フックファイルを生成
+
+```bash
+# フックと設定ファイルを生成
+wtenv init --hooks
+```
+
+以下のファイルが作成されます：
+- `.claude/settings.json` - Claude Code フック設定
+- `.claude/hooks/session-init.sh` - セッション開始フック（git コンテキスト表示）
+- `.claude/hooks/track-progress.py` - タスク進捗追跡フック（Python）
+- `~/.claude/stop-hook-git-check.sh` - グローバル停止フック（git 状態チェック）
+
+#### 2. Python インストールを確認
+
+Python 3.6以降が利用可能か確認：
+
+```bash
+python3 --version
+```
+
+#### 3. フックスクリプトに実行権限を付与
+
+```bash
+chmod +x .claude/hooks/session-init.sh
+chmod +x .claude/hooks/track-progress.py
+chmod +x ~/.claude/stop-hook-git-check.sh
+```
+
+#### 4. Claude Code でフックを有効化
+
+**オプションA: プロジェクトレベル（推奨）**
+
+`wtenv init --hooks`を実行すると、このプロジェクトでフックが自動的に有効化されます。
+
+**オプションB: グローバル（すべてのプロジェクト）**
+
+すべてのプロジェクトでフックを有効化する場合：
+
+```bash
+# グローバルClaude Code設定にコピー
+cp .claude/settings.json ~/.claude/settings.json
+```
+
+#### 5. 使用開始
+
+設定完了後、Claude Codeは以下を実行します：
+- ✅ セッション開始時に開発コンテキストを表示
+- ✅ リアルタイムでタスク進捗を追跡
+- ✅ 停止前にgit状態を確認
+- ✅ `wtenv ui`でタスクを表示
+
+**動作確認：**
+
+```bash
+# リポジトリでClaude Codeセッションを開始
+# 別のターミナルで以下を実行：
+wtenv ui
+
+# アクティブなClaudeセッションが表示されます！
+```
 
 ## クイックスタート
 
@@ -270,23 +363,114 @@ wtenv diff-env --all
 
 ### `wtenv ui`
 
-インタラクティブなTUIでworktreeを管理。
+インタラクティブなTUIでworktreeを管理。Claude Codeタスクのリアルタイム監視機能付き。
 
 ```bash
 # TUIを起動
 wtenv ui
 ```
 
-**キー操作:**
-- `↑/↓` または `j/k`: worktree選択
-- `r`: 状態を更新
-- `q` または `Esc`: 終了
+#### インターフェース概要
 
-**機能:**
-- すべてのworktreeを一覧表示
-- 選択したworktreeの詳細情報を表示
-- 実行中プロセス数をリアルタイム表示
-- キーボードナビゲーション
+UIは3つのメインセクションに分かれています：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees (3) | Processes (2) | Claude Tasks (1)            │ ← ヘッダー
+├─────────────────────────────────────────────────────────────┤
+│ > feature-auth     ✓ Clean        Process: npm test         │ ← Worktree一覧
+│   bugfix-123       ⚠ Modified     No process                │   （左パネル）
+│   feature-payment  🔄 Running     Process: pnpm build        │
+├─────────────────────────────────────────────────────────────┤
+│ Worktree Details: feature-auth                              │ ← 詳細パネル
+│ Branch: main → feature-auth                                 │   （右パネル）
+│ Path: /home/user/projects/myapp-feature-auth               │
+│ Modified: 0 files | Staged: 0 files                         │
+│ Last commit: 5m ago                                         │
+│                                                              │
+│ Active Processes: 1                                         │
+│   PID 12345: npm test (Running for 9m 12s)                  │
+│                                                              │
+│ Claude Code Tasks:                                          │
+│   🔵 feature-auth (In Progress) - 15m 30s                   │
+│      Last: Edit(src/auth.rs) - 2s ago                       │
+└─────────────────────────────────────────────────────────────┘
+Press 'r' to refresh | 'q' to quit                            ← フッター
+```
+
+#### キーバインディング
+
+| キー | 操作 |
+|------|------|
+| `↑/↓` | worktreeを移動（上/下） |
+| `j/k` | Vimスタイルのナビゲーション（下/上） |
+| `r` | **更新** - worktree、プロセス、Claudeタスクを再読み込み |
+| `q` または `Esc` | UIを終了 |
+| `Enter` | 選択したworktreeの詳細情報を表示 |
+
+#### Worktreeステータスアイコン
+
+| アイコン | ステータス | 説明 |
+|---------|-----------|------|
+| ✓ | **Clean** | 変更ファイルなし、すべてコミット済み |
+| ⚠ | **Modified** | ファイルが変更されているがコミットされていない |
+| 🔄 | **Running** | このworktreeでプロセスが実行中 |
+| 📝 | **Staged** | 変更がステージング済み |
+| 🔀 | **Ahead** | ローカルのコミットがリモートにプッシュされていない |
+| 🔽 | **Behind** | リモートのコミットがローカルにプルされていない |
+
+#### Claude Code タスクステータス
+
+UIはすべてのworktreeでClaude Codeセッションのリアルタイムステータスを表示します：
+
+| ステータス | アイコン | 説明 |
+|-----------|---------|------|
+| **In Progress** | 🔵 | Claudeが積極的にタスクを実行中 |
+| **Stop** | 🟡 | Claudeが停止、ユーザー入力が必要な可能性あり |
+| **Session Ended** | ⚫ | セッションが正常に終了 |
+| **Error** | 🔴 | タスクでエラーが発生 |
+
+**表示されるタスク情報：**
+- Claudeが作業中のworktree/ブランチ名
+- 現在のステータスと経過時間
+- 最後のアクティビティ（例: "Edit(src/main.rs)"、"Bash(cargo build)"）
+- 最後のアクティビティからの経過時間
+
+**自動更新：**
+UIは5秒ごとにClaudeタスクステータスを自動更新してリアルタイム情報を表示します。
+
+#### プロセス情報
+
+実行中プロセスがあるworktreeごとに：
+- **PID**: プロセスID
+- **Command**: 完全なコマンドライン
+- **Duration**: プロセスの実行時間
+- **Status**: Running、Stopped、Zombie
+
+#### 使い方のヒント
+
+1. **複数のWorktreeを監視**: すべての並列開発ブランチを一目で確認
+2. **長時間実行プロセスの追跡**: ビルド、テスト、開発サーバーの監視
+3. **Claude Code連携**: Claudeが何をしているか、いつ入力が必要かを把握
+4. **クイック更新**: `r`キーでいつでも最新ステータスを取得
+5. **キーボードフレンドリー**: すべての操作をキーボードで高速実行
+
+#### Claude Code連携のセットアップ
+
+UIでClaude Codeタスクを表示するには、まずフックをセットアップする必要があります：
+
+```bash
+# フックファイルを生成（未実施の場合）
+wtenv init --hooks
+
+# フックが実行可能か確認
+chmod +x .claude/hooks/track-progress.py
+
+# Claude Codeを使い始める
+# タスクが自動的に `wtenv ui` に表示されます
+```
+
+詳細なフック設定手順は[セットアップ](#セットアップ)セクションを参照してください。
 
 ### `wtenv analyze`
 
