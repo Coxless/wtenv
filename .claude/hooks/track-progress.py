@@ -6,7 +6,8 @@ This hook tracks Claude Code session progress and writes events to a JSONL file
 that can be consumed by wtenv UI for real-time task monitoring.
 
 Events tracked:
-- SessionStart: Task initialization → in_progress
+- SessionStart: Task initialization → (no status)
+- UserPromptSubmit: User sent a prompt → in_progress
 - PostToolUse: Progress updates on tool execution → in_progress (or error)
 - Stop: Response completed, user action needed → stop
 - SessionEnd: Session ended → session_ended
@@ -38,8 +39,11 @@ def get_task_status(hook_event: str, tool_name: str = "", hook_data: dict = None
     Returns: "in_progress" | "stop" | "session_ended" | "error" | None
     """
     if hook_event == "SessionStart":
-        # Don't set status on session start - wait for first tool use
+        # Don't set status on session start - wait for user prompt
         return None
+    elif hook_event == "UserPromptSubmit":
+        # User submitted a prompt - task is now in progress
+        return "in_progress"
     elif hook_event == "Stop":
         # Response completed, waiting for user action
         return "stop"
@@ -78,6 +82,8 @@ def get_event_message(hook_data: dict) -> str:
 
     if event == "SessionStart":
         return "Session started"
+    elif event == "UserPromptSubmit":
+        return "Processing user prompt"
     elif event == "SessionEnd":
         return "Session completed"
     elif event == "Stop":
