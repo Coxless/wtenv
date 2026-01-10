@@ -27,6 +27,13 @@ Fast and user-friendly git worktree management CLI tool with **parallel developm
 
 ## Installation
 
+### Requirements
+
+- **Rust** 1.91.0 or later (for building from source)
+- **Python** 3.6 or later (for Claude Code integration hooks)
+- **Git** 2.17 or later (for worktree support)
+- **GitHub CLI** (`gh`) - Optional, required only for `wtenv pr` command
+
 ### From Source
 
 ```bash
@@ -38,6 +45,88 @@ cargo install --path .
 ### From Binary
 
 Download from [Releases](https://github.com/USERNAME/wtenv/releases) and place in your PATH.
+
+## Setup
+
+### Basic Setup
+
+After installation, initialize the configuration file in your repository:
+
+```bash
+# Navigate to your git repository
+cd /path/to/your/repo
+
+# Initialize wtenv configuration
+wtenv init
+```
+
+This creates a `.worktree.yml` file where you can configure file copying and post-create commands.
+
+### Claude Code Hooks Setup
+
+To enable Claude Code integration for real-time task tracking:
+
+#### 1. Generate Hook Files
+
+```bash
+# Generate hooks and configuration files
+wtenv init --hooks
+```
+
+This creates:
+- `.claude/settings.json` - Claude Code hook configuration
+- `.claude/hooks/session-init.sh` - Session start hook (shows git context)
+- `.claude/hooks/track-progress.py` - Task progress tracking hook (Python)
+- `~/.claude/stop-hook-git-check.sh` - Global stop hook (git status check)
+
+#### 2. Verify Python Installation
+
+Ensure Python 3.6+ is available:
+
+```bash
+python3 --version
+```
+
+#### 3. Make Hook Scripts Executable
+
+```bash
+chmod +x .claude/hooks/session-init.sh
+chmod +x .claude/hooks/track-progress.py
+chmod +x ~/.claude/stop-hook-git-check.sh
+```
+
+#### 4. Enable Hooks in Claude Code
+
+**Option A: Project-level (Recommended)**
+
+The hooks are automatically enabled for this project after running `wtenv init --hooks`.
+
+**Option B: Global (All Projects)**
+
+To enable hooks for all projects:
+
+```bash
+# Copy to global Claude Code settings
+cp .claude/settings.json ~/.claude/settings.json
+```
+
+#### 5. Start Using
+
+Once configured, Claude Code will:
+- ✅ Show development context at session start
+- ✅ Track task progress in real-time
+- ✅ Verify git status before stopping
+- ✅ Display tasks in `wtenv ui`
+
+**Verify it's working:**
+
+```bash
+# Start a Claude Code session in the repository
+# Then run in another terminal:
+wtenv ui
+
+# You should see your active Claude session!
+```
 
 ## Quick Start
 
@@ -274,48 +363,114 @@ wtenv diff-env --all
 
 ### `wtenv ui`
 
-Manage worktrees with an interactive TUI, including Claude Code task monitoring.
+Manage worktrees with an interactive TUI, including real-time Claude Code task monitoring.
 
 ```bash
 # Launch TUI
 wtenv ui
 ```
 
-**Key bindings:**
-- `↑/↓` or `j/k`: Navigate worktrees
-- `r`: Refresh status (reloads worktrees, processes, and Claude tasks)
-- `q` or `Esc`: Quit
+#### Interface Overview
 
-**Features:**
-- List all worktrees with status
-- Display detailed information for selected worktree
-- Real-time process count display
-- **Claude Code task tracking** - View active AI coding sessions
-  - 🔵 In Progress - Claude is actively working
-  - 🟡 Needs Action - Response completed, user action needed
-  - ⚫ Session Ended - Session has ended
-  - 🔴 Error - Task encountered an error
-- Keyboard navigation
+The UI is divided into three main sections:
 
-**Claude Code Integration:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Worktrees (3) | Processes (2) | Claude Tasks (1)            │ ← Header
+├─────────────────────────────────────────────────────────────┤
+│ > feature-auth     ✓ Clean        Process: npm test         │ ← Worktree List
+│   bugfix-123       ⚠ Modified     No process                │   (Left Panel)
+│   feature-payment  🔄 Running     Process: pnpm build        │
+├─────────────────────────────────────────────────────────────┤
+│ Worktree Details: feature-auth                              │ ← Details Panel
+│ Branch: main → feature-auth                                 │   (Right Panel)
+│ Path: /home/user/projects/myapp-feature-auth               │
+│ Modified: 0 files | Staged: 0 files                         │
+│ Last commit: 5m ago                                         │
+│                                                              │
+│ Active Processes: 1                                         │
+│   PID 12345: npm test (Running for 9m 12s)                  │
+│                                                              │
+│ Claude Code Tasks:                                          │
+│   🔵 feature-auth (In Progress) - 15m 30s                   │
+│      Last: Edit(src/auth.rs) - 2s ago                       │
+└─────────────────────────────────────────────────────────────┘
+Press 'r' to refresh | 'q' to quit                            ← Footer
+```
 
-The UI automatically detects and displays active Claude Code sessions from all your worktrees. To enable this feature:
+#### Key Bindings
 
-1. Copy the hook configuration:
-   ```bash
-   cp .claude/settings.json.example .claude/settings.json
-   # or for global configuration:
-   cp .claude/settings.json.example ~/.claude/settings.json
-   ```
+| Key | Action |
+|-----|--------|
+| `↑/↓` | Navigate worktrees (move up/down) |
+| `j/k` | Vim-style navigation (down/up) |
+| `r` | **Refresh** - Reload worktrees, processes, and Claude tasks |
+| `q` or `Esc` | Quit the UI |
+| `Enter` | View detailed information for selected worktree |
 
-2. Ensure the hook script is executable:
-   ```bash
-   chmod +x .claude/hooks/track-progress.py
-   ```
+#### Worktree Status Icons
 
-3. Start using Claude Code - tasks will automatically appear in `wtenv ui`
+| Icon | Status | Description |
+|------|--------|-------------|
+| ✓ | **Clean** | No modified files, all changes committed |
+| ⚠ | **Modified** | Files have been changed but not committed |
+| 🔄 | **Running** | Process is actively running in this worktree |
+| 📝 | **Staged** | Changes are staged for commit |
+| 🔀 | **Ahead** | Local commits not pushed to remote |
+| 🔽 | **Behind** | Remote commits not pulled locally |
 
-See `.claude/hooks/README.md` for more details.
+#### Claude Code Task Status
+
+The UI displays real-time status of Claude Code sessions across all worktrees:
+
+| Status | Icon | Description |
+|--------|------|-------------|
+| **In Progress** | 🔵 | Claude is actively working on tasks |
+| **Stop** | 🟡 | Claude has stopped and may need user input |
+| **Session Ended** | ⚫ | Session has completed normally |
+| **Error** | 🔴 | Task encountered an error |
+
+**Task Information Displayed:**
+- Worktree/branch name where Claude is working
+- Current status and duration
+- Last activity (e.g., "Edit(src/main.rs)", "Bash(cargo build)")
+- Time since last activity
+
+**Auto-refresh:**
+The UI automatically refreshes Claude task status every 5 seconds to show real-time updates.
+
+#### Process Information
+
+For each worktree with running processes:
+- **PID**: Process ID
+- **Command**: Full command line
+- **Duration**: How long the process has been running
+- **Status**: Running, Stopped, or Zombie
+
+#### Usage Tips
+
+1. **Monitor Multiple Worktrees**: See all your parallel development branches at a glance
+2. **Track Long-running Processes**: Keep an eye on builds, tests, or dev servers
+3. **Claude Code Integration**: Know exactly what Claude is doing and when it needs your input
+4. **Quick Refresh**: Press `r` anytime to get the latest status
+5. **Keyboard-friendly**: Navigate entirely with keyboard for speed
+
+#### Setting Up Claude Code Integration
+
+To see Claude Code tasks in the UI, you must set up hooks first:
+
+```bash
+# Generate hook files (if not already done)
+wtenv init --hooks
+
+# Verify hooks are executable
+chmod +x .claude/hooks/track-progress.py
+
+# Start using Claude Code
+# Tasks will automatically appear in `wtenv ui`
+```
+
+See the [Setup](#setup) section for detailed hook configuration instructions.
 
 ### `wtenv analyze`
 
