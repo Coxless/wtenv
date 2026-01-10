@@ -1,6 +1,6 @@
 use std::process::Command;
 
-/// wtenvコマンドのヘルプが正常に表示されるかテスト
+/// ccmon help command displays correctly
 #[test]
 fn test_help_command() {
     let output = Command::new("cargo")
@@ -10,89 +10,73 @@ fn test_help_command() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Git worktree environment manager"));
-    assert!(stdout.contains("status"));
-    assert!(stdout.contains("ps"));
-    assert!(stdout.contains("kill"));
+    assert!(stdout.contains("Claude Code Monitor"));
+    assert!(stdout.contains("init"));
+    assert!(stdout.contains("ui"));
+    assert!(stdout.contains("notify"));
 }
 
-/// statusコマンドが実行できるかテスト
+/// init command help displays correctly
 #[test]
-fn test_status_command() {
+fn test_init_command_help() {
     let output = Command::new("cargo")
-        .args(["run", "--", "status"])
+        .args(["run", "--", "init", "--help"])
         .output()
         .expect("Failed to execute command");
 
-    // Gitリポジトリ内であれば成功するはず
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("Worktrees Overview") || stdout.contains("worktree"));
-    }
-}
-
-/// psコマンドが実行できるかテスト
-#[test]
-fn test_ps_command() {
-    let output = Command::new("cargo")
-        .args(["run", "--", "ps"])
-        .output()
-        .expect("Failed to execute command");
-
-    // コマンドが実行できればOK（プロセスがなくても正常）
     assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Initialize Claude Code hooks"));
 }
 
-/// listコマンドが正常に動作するかテスト
+/// notify command help displays correctly
 #[test]
-fn test_list_command() {
+fn test_notify_help() {
     let output = Command::new("cargo")
-        .args(["run", "--", "list"])
+        .args(["run", "--", "notify", "--help"])
         .output()
         .expect("Failed to execute command");
 
-    // Gitリポジトリ内であれば成功するはず
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        // 少なくとも1つのworktreeは存在する（メインworktree）
-        assert!(!stdout.is_empty());
-    }
-}
-
-/// configコマンドが実行できるかテスト
-#[test]
-fn test_config_command() {
-    let output = Command::new("cargo")
-        .args(["run", "--", "config"])
-        .output()
-        .expect("Failed to execute command");
-
-    // 設定ファイルがあってもなくても、コマンド自体は成功するはず
     assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Execute command with desktop notification"));
 }
 
-/// diff-envコマンドが--allオプションで実行できるかテスト
+/// notify command executes a simple command
 #[test]
-fn test_diff_env_all_command() {
+fn test_notify_echo() {
     let output = Command::new("cargo")
-        .args(["run", "--", "diff-env", "--all"])
+        .args(["run", "--", "notify", "echo hello"])
         .output()
         .expect("Failed to execute command");
 
-    // Gitリポジトリ内であれば成功するはず
     assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("hello"));
 }
 
-/// diff-envコマンドが引数不足でエラーを返すかテスト
+/// ui command help displays correctly
 #[test]
-fn test_diff_env_insufficient_args() {
+fn test_ui_help() {
     let output = Command::new("cargo")
-        .args(["run", "--", "diff-env"])
+        .args(["run", "--", "ui", "--help"])
         .output()
         .expect("Failed to execute command");
 
-    // 引数が不足している場合はエラーになるはず
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("2つのworktreeを指定するか") || stderr.contains("all"));
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Interactive TUI"));
+}
+
+/// version flag displays correctly
+#[test]
+fn test_version() {
+    let output = Command::new("cargo")
+        .args(["run", "--", "--version"])
+        .output()
+        .expect("Failed to execute command");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("ccmon"));
 }

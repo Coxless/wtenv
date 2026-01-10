@@ -39,8 +39,7 @@ pub fn format_config_error(path: &Path, details: &str) -> String {
          パス: {}\n\
          詳細: {}\n\n\
          ヒント:\n\
-         - 設定ファイルのYAML構文を確認してください\n\
-         - 'wtenv init --force' で設定ファイルを再作成できます",
+         - 'ccmon init --force' で設定ファイルを再作成できます",
         path.display(),
         details
     )
