@@ -434,7 +434,7 @@ impl TaskManager {
 
     /// Get the progress directory path
     /// Falls back to current directory if home directory cannot be determined
-    fn get_progress_dir() -> PathBuf {
+    pub fn get_progress_dir() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".claude")
