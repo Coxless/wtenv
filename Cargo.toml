@@ -5,13 +5,13 @@ edition = "2021"
 rust-version = "1.91.0"
 description = "Claude Code Monitor - Real-time task progress for parallel development"
 license = "MIT"
-repository = "https://github.com/USERNAME/ccmon"
-homepage = "https://github.com/USERNAME/ccmon"
-documentation = "https://github.com/USERNAME/ccmon#readme"
+repository = "https://github.com/coxless/ccmon"
+homepage = "https://github.com/coxless/ccmon"
+documentation = "https://github.com/coxless/ccmon#readme"
 keywords = ["claude", "claude-code", "cli", "monitor", "tui"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["coxless.superconductor@gmail.com"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
