@@ -18,7 +18,6 @@ Claude Code の並列開発タスク進捗をリアルタイムで表示する C
 - chrono 0.4系（日時処理、serde機能有効）
 - ratatui 0.29系（TUI構築）
 - crossterm 0.28系（ターミナル制御）
-- notify-rust 4.11系（デスクトップ通知）
 - dirs 5.0系（ホームディレクトリ解決）
 
 ### ビルド設定
@@ -41,7 +40,6 @@ strip = true         # シンボル削除
 | `/src/commands/mod.rs` | コマンドモジュールの re-export | - |
 | `/src/commands/claude_task.rs` | Claude Code タスク進捗追跡。データ構造とJSONL読み込み | - |
 | `/src/commands/ui.rs` | インタラクティブTUI。Claude Code タスク進捗表示 | - |
-| `/src/commands/notify.rs` | デスクトップ通知コマンド | - |
 
 ## コーディングルール
 
@@ -77,11 +75,7 @@ strip = true         # シンボル削除
 ccmon
 ├── init                # Claude Code hooks を初期化
 │   └── --force         # 既存設定を上書き
-├── ui                  # インタラクティブTUI（タスク進捗表示）
-└── notify <command>    # コマンド実行とデスクトップ通知
-    ├── -d, --dir       # 作業ディレクトリ
-    ├── --notify-success # 成功時に通知（デフォルト: true）
-    └── --notify-error   # エラー時に通知（デフォルト: true）
+└── ui                  # インタラクティブTUI（タスク進捗表示）
 ```
 
 ### グローバルオプション
@@ -145,21 +139,6 @@ cp .claude/settings.json ~/.claude/settings.json
 | `k` / `↑` | 前のタスクへ移動 |
 | `r` | タスクリストを更新 |
 | `q` / `Esc` | 終了 |
-
-### デスクトップ通知
-
-`ccmon notify <command>` で、コマンド実行完了時にデスクトップ通知を送信:
-
-```bash
-# ビルド完了を通知
-ccmon notify "cargo build --release"
-
-# テスト完了を通知
-ccmon notify "cargo test"
-
-# 成功時のみ通知
-ccmon notify --notify-error=false "npm run lint"
-```
 
 ## パフォーマンス目標
 

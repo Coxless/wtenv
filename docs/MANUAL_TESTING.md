@@ -1,4 +1,4 @@
-# wtenv 動作確認手順書
+# ccmon 動作確認手順書
 
 リリース前の手動動作確認チェックリスト。
 
@@ -11,18 +11,13 @@
 cargo build --release
 
 # 2. パスを通す（またはエイリアス設定）
-alias wtenv="./target/release/wtenv"
+alias ccmon="./target/release/ccmon"
 
 # 3. テスト用gitリポジトリを準備
 cd /tmp
-mkdir wtenv-test-repo && cd wtenv-test-repo
+mkdir ccmon-test-repo && cd ccmon-test-repo
 git init
 git commit --allow-empty -m "Initial commit"
-
-# 4. テスト用ブランチを作成
-git branch feature-a
-git branch feature-b
-git branch feature-c
 ```
 
 ### 確認環境
@@ -36,25 +31,26 @@ git branch feature-c
 ### 1.1 ヘルプ表示
 
 ```bash
-wtenv --help
-wtenv -h
-wtenv create --help
+ccmon --help
+ccmon -h
+ccmon init --help
+ccmon ui --help
 ```
 
 **期待結果:**
-- [ ] サブコマンド一覧が表示される
+- [ ] サブコマンド一覧が表示される（init, ui）
 - [ ] 各オプションの説明が表示される
-- [ ] 日本語/英語の説明が正しく表示される
+- [ ] "Claude Code Monitor" が表示される
 
 ### 1.2 バージョン表示
 
 ```bash
-wtenv --version
-wtenv -V
+ccmon --version
+ccmon -V
 ```
 
 **期待結果:**
-- [ ] `wtenv 0.1.0` が表示される
+- [ ] `ccmon 0.1.0` が表示される
 
 ---
 
@@ -63,516 +59,122 @@ wtenv -V
 ### 2.1 基本的な初期化
 
 ```bash
-cd /tmp/wtenv-test-repo
-wtenv init
+cd /tmp/ccmon-test-repo
+ccmon init
 ```
 
 **期待結果:**
-- [ ] `.worktree.yml` が作成される
-- [ ] 成功メッセージが表示される
-- [ ] 作成されたファイルが有効なYAML
-
-### 2.2 既存ファイルがある場合
-
-```bash
-wtenv init  # 2回目
-```
-
-**期待結果:**
-- [ ] 上書き確認ダイアログが表示される
-- [ ] `n` で中止、`y` で上書き
-
-### 2.3 強制上書き
-
-```bash
-wtenv init -f
-wtenv init --force
-```
-
-**期待結果:**
-- [ ] 確認なしで上書きされる
-
-### 2.4 hooks付き初期化
-
-```bash
-rm -rf .worktree.yml .claude
-wtenv init --hooks
-```
-
-**期待結果:**
-- [ ] `.worktree.yml` が作成される
 - [ ] `.claude/settings.json` が作成される
 - [ ] `.claude/hooks/session-init.sh` が作成される
 - [ ] `.claude/hooks/track-progress.py` が作成される
 - [ ] `~/.claude/stop-hook-git-check.sh` が作成される
-- [ ] 次のステップの案内が表示される
+- [ ] 成功メッセージと次のステップ案内が表示される
+
+### 2.2 作成されたファイルの確認
+
+```bash
+cat .claude/settings.json
+cat .claude/hooks/session-init.sh
+cat .claude/hooks/track-progress.py
+cat ~/.claude/stop-hook-git-check.sh
+```
+
+**期待結果:**
+- [ ] settings.json に SessionStart, PostToolUse, Stop, SessionEnd, Notification, UserPromptSubmit の hooks が定義されている
+- [ ] session-init.sh が実行可能（755）
+- [ ] track-progress.py が実行可能（755）
+- [ ] stop-hook-git-check.sh が実行可能（755）
+
+### 2.3 既存ファイルがある場合
+
+```bash
+ccmon init  # 2回目
+```
+
+**期待結果:**
+- [ ] エラーメッセージが表示される
+- [ ] `--force` オプションの案内が表示される
+
+### 2.4 強制上書き
+
+```bash
+ccmon init -f
+ccmon init --force
+```
+
+**期待結果:**
+- [ ] 確認なしで上書きされる
+- [ ] 成功メッセージが表示される
 
 ---
 
-## 3. config コマンド
+## 3. ui コマンド
 
-### 3.1 設定ファイル表示
-
-```bash
-wtenv config
-```
-
-**期待結果:**
-- [ ] 設定ファイルのパスが表示される
-- [ ] 設定内容が表示される
-- [ ] バリデーション結果が表示される
-
-### 3.2 詳細モード
+### 3.1 TUI起動
 
 ```bash
-wtenv config -v
-```
-
-**期待結果:**
-- [ ] バージョン、コピー対象数、除外対象数、post-createコマンド数が表示される
-
-### 3.3 設定ファイルがない場合
-
-```bash
-cd /tmp
-mkdir no-config-test && cd no-config-test
-git init
-wtenv config
-```
-
-**期待結果:**
-- [ ] 「設定ファイルが見つかりませんでした」と表示される
-- [ ] `wtenv init` の案内が表示される
-
----
-
-## 4. create コマンド
-
-### 4.1 基本的なworktree作成
-
-```bash
-cd /tmp/wtenv-test-repo
-wtenv create feature-a
-```
-
-**期待結果:**
-- [ ] worktreeが作成される
-- [ ] 成功メッセージと `cd` コマンドが表示される
-- [ ] `../feature-a` ディレクトリが存在する
-
-### 4.2 パス指定
-
-```bash
-wtenv create feature-b /tmp/custom-path
-```
-
-**期待結果:**
-- [ ] 指定パスにworktreeが作成される
-
-### 4.3 対話モード
-
-```bash
-wtenv create
-```
-
-**期待結果:**
-- [ ] ブランチ名入力プロンプトが表示される
-- [ ] パス確認プロンプトが表示される
-- [ ] 入力に基づいてworktreeが作成される
-
-### 4.4 ファイルコピー確認
-
-```bash
-# テスト用.envを作成
-cd /tmp/wtenv-test-repo
-echo "TEST_VAR=main" > .env
-
-# 設定ファイルを更新
-cat > .worktree.yml << 'EOF'
-version: 1
-copy:
-  - .env
-EOF
-
-# 新しいworktree作成
-git branch feature-copy-test
-wtenv create feature-copy-test
-```
-
-**期待結果:**
-- [ ] 「環境ファイルをコピー中...」が表示される
-- [ ] コピー完了メッセージが表示される
-- [ ] `../feature-copy-test/.env` が存在し内容が同じ
-
-### 4.5 コピースキップ
-
-```bash
-git branch feature-no-copy
-wtenv create feature-no-copy --no-copy
-```
-
-**期待結果:**
-- [ ] `.env` がコピーされない
-
-### 4.6 post-createコマンド確認
-
-```bash
-cat > .worktree.yml << 'EOF'
-version: 1
-postCreate:
-  - command: echo "Hello from post-create"
-    description: "テストメッセージ"
-EOF
-
-git branch feature-post-create
-wtenv create feature-post-create
-```
-
-**期待結果:**
-- [ ] post-createコマンドが実行される
-- [ ] 「Hello from post-create」が出力される
-
-### 4.7 post-createスキップ
-
-```bash
-git branch feature-no-post
-wtenv create feature-no-post --no-post-create
-```
-
-**期待結果:**
-- [ ] post-createコマンドが実行されない
-
-### 4.8 設定ファイル指定
-
-```bash
-echo "version: 1" > /tmp/custom-config.yml
-git branch feature-custom-config
-wtenv create feature-custom-config -c /tmp/custom-config.yml
-```
-
-**期待結果:**
-- [ ] 指定した設定ファイルが使用される
-
----
-
-## 5. list コマンド
-
-### 5.1 worktree一覧
-
-```bash
-wtenv list
-```
-
-**期待結果:**
-- [ ] 全worktreeが一覧表示される
-- [ ] パス、ブランチ名、コミットハッシュが表示される
-- [ ] メインworktreeに `(main)` マークが付く
-
-### 5.2 詳細モード
-
-```bash
-wtenv list -v
-```
-
-**期待結果:**
-- [ ] より詳細な情報が表示される
-
-### 5.3 worktreeがない場合
-
-```bash
-cd /tmp
-mkdir empty-repo && cd empty-repo
-git init
-wtenv list
-```
-
-**期待結果:**
-- [ ] 「worktreeが見つかりませんでした」または空の一覧
-
----
-
-## 6. status コマンド
-
-### 6.1 基本的な状態表示
-
-```bash
-cd /tmp/wtenv-test-repo
-wtenv status
-```
-
-**期待結果:**
-- [ ] 各worktreeの状態が表示される
-- [ ] 変更ファイル数が表示される
-- [ ] ブランチ情報が表示される
-
-### 6.2 詳細モード
-
-```bash
-wtenv status -v
-```
-
-**期待結果:**
-- [ ] より詳細な情報が表示される
-
----
-
-## 7. remove コマンド
-
-### 7.1 削除確認
-
-```bash
-# テスト用worktree作成
-git branch remove-test
-wtenv create remove-test
-
-# 削除
-wtenv remove ../remove-test
-```
-
-**期待結果:**
-- [ ] 削除確認ダイアログが表示される
-- [ ] `n` で中止、`y` で削除
-
-### 7.2 強制削除
-
-```bash
-git branch remove-force-test
-wtenv create remove-force-test
-wtenv remove ../remove-force-test -f
-```
-
-**期待結果:**
-- [ ] 確認なしで削除される
-
-### 7.3 存在しないパス
-
-```bash
-wtenv remove /nonexistent/path
-```
-
-**期待結果:**
-- [ ] 適切なエラーメッセージが表示される
-
----
-
-## 8. ps / kill コマンド
-
-### 8.1 プロセス一覧
-
-```bash
-wtenv ps
-```
-
-**期待結果:**
-- [ ] worktree内で実行中のプロセス一覧が表示される
-- [ ] プロセスがない場合は適切なメッセージ
-
-### 8.2 フィルタ付き
-
-```bash
-wtenv ps feature-a
-```
-
-**期待結果:**
-- [ ] 指定worktreeのプロセスのみ表示される
-
-### 8.3 プロセス停止
-
-```bash
-# バックグラウンドプロセスを起動してテスト
-wtenv kill <PID>
-```
-
-**期待結果:**
-- [ ] 指定プロセスが停止される
-
-### 8.4 全プロセス停止
-
-```bash
-wtenv kill --all
-```
-
-**期待結果:**
-- [ ] 全プロセスが停止される
-
----
-
-## 9. diff-env コマンド
-
-### 9.1 2つのworktree比較
-
-```bash
-# 異なる.envを作成
-cd /tmp/wtenv-test-repo
-echo "VAR1=main" > .env
-
-cd ../feature-a
-echo "VAR1=feature" > .env
-echo "VAR2=only-feature" >> .env
-
-cd /tmp/wtenv-test-repo
-wtenv diff-env . ../feature-a
-```
-
-**期待結果:**
-- [ ] 差分が表示される
-- [ ] 追加/削除/変更が区別される
-
-### 9.2 全worktree比較
-
-```bash
-wtenv diff-env --all
-```
-
-**期待結果:**
-- [ ] 全worktree間の環境変数差分が表示される
-
----
-
-## 10. analyze コマンド
-
-### 10.1 基本分析
-
-```bash
-wtenv analyze
-```
-
-**期待結果:**
-- [ ] worktreeの分析結果が表示される
-
-### 10.2 詳細分析
-
-```bash
-wtenv analyze -d
-wtenv analyze --detailed
-```
-
-**期待結果:**
-- [ ] より詳細な分析結果が表示される
-
----
-
-## 11. clean コマンド
-
-### 11.1 ドライラン
-
-```bash
-wtenv clean --dry-run
-```
-
-**期待結果:**
-- [ ] 削除対象が表示される
-- [ ] 実際には削除されない
-
-### 11.2 マージ済みのみ
-
-```bash
-wtenv clean --merged-only --dry-run
-```
-
-**期待結果:**
-- [ ] マージ済みブランチのworktreeのみ対象
-
-### 11.3 古いworktreeのみ
-
-```bash
-wtenv clean --stale-days 30 --dry-run
-```
-
-**期待結果:**
-- [ ] 30日以上更新されていないworktreeのみ対象
-
-### 11.4 強制削除
-
-```bash
-wtenv clean -f
-```
-
-**期待結果:**
-- [ ] 確認なしで削除される
-
----
-
-## 12. notify コマンド
-
-### 12.1 成功時通知
-
-```bash
-wtenv notify "echo 'success'"
-```
-
-**期待結果:**
-- [ ] コマンドが実行される
-- [ ] デスクトップ通知が表示される
-
-### 12.2 失敗時通知
-
-```bash
-wtenv notify "exit 1"
-```
-
-**期待結果:**
-- [ ] エラー通知が表示される
-
-### 12.3 作業ディレクトリ指定
-
-```bash
-wtenv notify "pwd" -d /tmp
-```
-
-**期待結果:**
-- [ ] `/tmp` で実行される
-
----
-
-## 13. pr コマンド
-
-### 13.1 PR番号指定
-
-```bash
-# GitHub CLIが必要
-wtenv pr 123
-```
-
-**期待結果:**
-- [ ] PR情報を取得してworktreeが作成される
-- [ ] または適切なエラーメッセージ
-
----
-
-## 14. ui コマンド
-
-### 14.1 TUI起動
-
-```bash
-wtenv ui
+ccmon ui
 ```
 
 **期待結果:**
 - [ ] インタラクティブTUIが起動する
-- [ ] worktree一覧が表示される
-- [ ] キー操作で移動できる
-- [ ] `q` で終了できる
+- [ ] "ccmon - Claude Code Monitor" ヘッダーが表示される
+- [ ] Claude Code Tasks セクションが表示される
+- [ ] Task Details セクションが表示される
+- [ ] フッターにアクティブ/合計タスク数が表示される
+
+### 3.2 キーバインド確認
+
+TUI内で以下を確認:
+
+**期待結果:**
+- [ ] `j` / `↓` で次のタスクへ移動
+- [ ] `k` / `↑` で前のタスクへ移動
+- [ ] `r` で手動更新
+- [ ] `q` または `Esc` で終了
+
+### 3.3 タスクがない場合
+
+```bash
+# タスクファイルを削除してから
+rm -rf ~/.claude/task-progress/*.jsonl
+ccmon ui
+```
+
+**期待結果:**
+- [ ] "No Claude Code tasks found" メッセージが表示される
+- [ ] "ccmon init" の案内が表示される
+
+### 3.4 自動更新確認
+
+```bash
+# 別ターミナルでタスクファイルを作成しながら ui を確認
+ccmon ui
+# 別ターミナルで: echo '{"timestamp":"2024-01-01T00:00:00Z","session_id":"test","event":"SessionStart","cwd":"/tmp/test"}' > ~/.claude/task-progress/test-session.jsonl
+```
+
+**期待結果:**
+- [ ] 1秒後に新しいタスクが表示される
 
 ---
 
-## 15. グローバルオプション
+## 4. グローバルオプション
 
-### 15.1 詳細モード
+### 4.1 詳細モード
 
 ```bash
-wtenv -v list
-wtenv --verbose list
+ccmon -v init
+ccmon --verbose init --force
 ```
 
 **期待結果:**
 - [ ] 詳細情報が追加表示される
 
-### 15.2 サイレントモード
+### 4.2 サイレントモード
 
 ```bash
-wtenv -q create feature-quiet-test
-wtenv --quiet list
+ccmon -q init --force
+ccmon --quiet ui
 ```
 
 **期待結果:**
@@ -581,54 +183,80 @@ wtenv --quiet list
 
 ---
 
-## 16. エラーハンドリング
+## 5. エラーハンドリング
 
-### 16.1 gitリポジトリ外での実行
+### 5.1 無効なコマンド
 
 ```bash
-cd /tmp
-mkdir not-a-repo && cd not-a-repo
-wtenv list
+ccmon invalid-command
 ```
 
 **期待結果:**
 - [ ] 適切なエラーメッセージが表示される
-
-### 16.2 無効なブランチ名
-
-```bash
-wtenv create "invalid branch name with spaces"
-```
-
-**期待結果:**
-- [ ] 適切なエラーメッセージが表示される
-
-### 16.3 権限エラー
-
-```bash
-wtenv create test-branch /root/no-permission
-```
-
-**期待結果:**
-- [ ] 適切なエラーメッセージが表示される
+- [ ] 有効なコマンド一覧が表示される
 
 ---
 
-## 17. パフォーマンス確認
+## 6. hooks 動作確認
 
-### 17.1 起動時間
+### 6.1 session-init.sh
 
 ```bash
-time wtenv --help
+cd /tmp/ccmon-test-repo
+./.claude/hooks/session-init.sh
+```
+
+**期待結果:**
+- [ ] "Development Context" が表示される
+- [ ] ブランチ情報が表示される
+- [ ] 最近のコミットが表示される
+
+### 6.2 track-progress.py
+
+```bash
+echo '{"session_id":"test","hook_event_name":"SessionStart","cwd":"/tmp"}' | ./.claude/hooks/track-progress.py
+cat ~/.claude/task-progress/test.jsonl
+```
+
+**期待結果:**
+- [ ] JSONL ファイルにイベントが記録される
+- [ ] タイムスタンプが含まれる
+
+### 6.3 stop-hook-git-check.sh
+
+```bash
+# クリーンな状態で
+echo '{}' | ~/.claude/stop-hook-git-check.sh
+echo $?
+
+# 変更がある状態で
+echo "test" > uncommitted.txt
+echo '{}' | ~/.claude/stop-hook-git-check.sh
+echo $?
+rm uncommitted.txt
+```
+
+**期待結果:**
+- [ ] クリーン時: 終了コード 0
+- [ ] 変更あり時: 終了コード 2 とメッセージ
+
+---
+
+## 7. パフォーマンス確認
+
+### 7.1 起動時間
+
+```bash
+time ccmon --help
 ```
 
 **期待結果:**
 - [ ] 50ms未満
 
-### 17.2 バイナリサイズ
+### 7.2 バイナリサイズ
 
 ```bash
-ls -lh target/release/wtenv
+ls -lh target/release/ccmon
 ```
 
 **期待結果:**
@@ -636,15 +264,13 @@ ls -lh target/release/wtenv
 
 ---
 
-## 18. クリーンアップ
+## 8. クリーンアップ
 
 ```bash
 # テスト用データを削除
 cd /tmp
-rm -rf wtenv-test-repo
-rm -rf feature-a feature-b feature-c
-rm -rf custom-path
-rm -rf empty-repo no-config-test not-a-repo
+rm -rf ccmon-test-repo
+rm -f ~/.claude/task-progress/test*.jsonl
 ```
 
 ---
@@ -655,20 +281,10 @@ rm -rf empty-repo no-config-test not-a-repo
 |---------|--------|------|
 | 基本コマンド | 2 | [ ] |
 | init | 4 | [ ] |
-| config | 3 | [ ] |
-| create | 8 | [ ] |
-| list | 3 | [ ] |
-| status | 2 | [ ] |
-| remove | 3 | [ ] |
-| ps/kill | 4 | [ ] |
-| diff-env | 2 | [ ] |
-| analyze | 2 | [ ] |
-| clean | 4 | [ ] |
-| notify | 3 | [ ] |
-| pr | 1 | [ ] |
-| ui | 1 | [ ] |
+| ui | 4 | [ ] |
 | グローバルオプション | 2 | [ ] |
-| エラーハンドリング | 3 | [ ] |
+| エラーハンドリング | 1 | [ ] |
+| hooks 動作 | 3 | [ ] |
 | パフォーマンス | 2 | [ ] |
 
 **確認者:** _______________

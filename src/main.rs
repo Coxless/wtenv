@@ -6,7 +6,6 @@ mod output;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
-use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "ccmon")]
@@ -30,8 +29,6 @@ enum Commands {
     Init(InitArgs),
     /// Interactive TUI for Claude Code task progress
     Ui,
-    /// Execute command with desktop notification
-    Notify(NotifyArgs),
 }
 
 #[derive(Args)]
@@ -39,21 +36,6 @@ struct InitArgs {
     /// Overwrite existing configuration
     #[arg(short, long)]
     force: bool,
-}
-
-#[derive(Args)]
-struct NotifyArgs {
-    /// Command to execute
-    command: String,
-    /// Working directory (default: current directory)
-    #[arg(short, long)]
-    dir: Option<String>,
-    /// Notify on success
-    #[arg(long, default_value = "true")]
-    notify_success: bool,
-    /// Notify on error
-    #[arg(long, default_value = "true")]
-    notify_error: bool,
 }
 
 /// Output options
@@ -85,7 +67,6 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Init(args) => cmd_init(args, opts),
         Commands::Ui => cmd_ui(),
-        Commands::Notify(args) => cmd_notify(args),
     }
 }
 
@@ -131,20 +112,4 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
 /// ui subcommand
 fn cmd_ui() -> Result<()> {
     commands::ui::execute()
-}
-
-/// notify subcommand
-fn cmd_notify(args: NotifyArgs) -> Result<()> {
-    let working_dir = if let Some(dir) = args.dir {
-        PathBuf::from(dir)
-    } else {
-        std::env::current_dir()?
-    };
-
-    commands::notify::execute_with_notification(
-        &args.command,
-        &working_dir,
-        args.notify_success,
-        args.notify_error,
-    )
 }
