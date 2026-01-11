@@ -37,6 +37,7 @@ impl OutputStyle {
 }
 
 /// プログレスバー作成
+#[allow(dead_code)]
 pub fn create_progress_bar(len: u64, msg: &str) -> indicatif::ProgressBar {
     use indicatif::{ProgressBar, ProgressStyle};
 
@@ -68,6 +69,7 @@ pub fn create_progress_bar(len: u64, msg: &str) -> indicatif::ProgressBar {
 /// assert_eq!(format_size(1048576), "1.00 MB");
 /// assert_eq!(format_size(500), "500 B");
 /// ```
+#[allow(dead_code)]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;

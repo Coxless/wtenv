@@ -254,12 +254,6 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         .iter()
         .map(|task| {
             let status_emoji = task.status.emoji();
-            let status_text = match task.status {
-                TaskStatus::InProgress => "In Progress",
-                TaskStatus::Stop => "⚠ Stop",
-                TaskStatus::SessionEnded => "Session Ended",
-                TaskStatus::Error => "Error",
-            };
 
             let color = match task.status {
                 TaskStatus::InProgress => Color::Blue,
