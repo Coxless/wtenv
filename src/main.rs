@@ -38,9 +38,10 @@ struct InitArgs {
     force: bool,
 }
 
-/// Output options
+/// Output options for controlling console output verbosity
 #[derive(Clone, Copy)]
 struct OutputOptions {
+    #[allow(dead_code)]
     verbose: bool,
     quiet: bool,
 }
@@ -48,11 +49,6 @@ struct OutputOptions {
 impl OutputOptions {
     fn should_print(&self) -> bool {
         !self.quiet
-    }
-
-    #[allow(dead_code)]
-    fn should_print_verbose(&self) -> bool {
-        self.verbose && !self.quiet
     }
 }
 

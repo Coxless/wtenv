@@ -2,6 +2,22 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Set executable permissions on a file (Unix only)
+#[cfg(unix)]
+fn set_executable(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = fs::metadata(path)?.permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(path, perms)?;
+    Ok(())
+}
+
+/// No-op on non-Unix platforms
+#[cfg(not(unix))]
+fn set_executable(_path: &Path) -> Result<()> {
+    Ok(())
+}
+
 /// Claude Code hooks 設定テンプレート
 const CLAUDE_SETTINGS_TEMPLATE: &str = r#"{
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -420,14 +436,7 @@ pub fn create_claude_hooks(dir: &Path, force: bool) -> Result<Vec<PathBuf>> {
             session_init_path.display()
         )
     })?;
-    // 実行権限を付与
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&session_init_path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&session_init_path, perms)?;
-    }
+    set_executable(&session_init_path)?;
     created_files.push(session_init_path);
 
     // 3. .claude/hooks/track-progress.py
@@ -438,14 +447,7 @@ pub fn create_claude_hooks(dir: &Path, force: bool) -> Result<Vec<PathBuf>> {
             track_progress_path.display()
         )
     })?;
-    // 実行権限を付与
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&track_progress_path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&track_progress_path, perms)?;
-    }
+    set_executable(&track_progress_path)?;
     created_files.push(track_progress_path);
 
     // 4. ~/.claude/stop-hook-git-check.sh
@@ -460,8 +462,8 @@ pub fn create_claude_hooks(dir: &Path, force: bool) -> Result<Vec<PathBuf>> {
         })?;
     }
 
+    // Skip if already exists (do not overwrite even with --force)
     let stop_hook_path = home_claude_dir.join("stop-hook-git-check.sh");
-    // 既に存在する場合はスキップ（force でも上書きしない）
     if !stop_hook_path.exists() {
         fs::write(&stop_hook_path, STOP_HOOK_GIT_CHECK_TEMPLATE).with_context(|| {
             format!(
@@ -469,14 +471,7 @@ pub fn create_claude_hooks(dir: &Path, force: bool) -> Result<Vec<PathBuf>> {
                 stop_hook_path.display()
             )
         })?;
-        // 実行権限を付与
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&stop_hook_path)?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(&stop_hook_path, perms)?;
-        }
+        set_executable(&stop_hook_path)?;
         created_files.push(stop_hook_path);
     }
 

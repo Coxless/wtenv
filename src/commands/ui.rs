@@ -17,6 +17,16 @@ use std::time::{Duration, Instant};
 
 use crate::commands::claude_task::{TaskManager, TaskStatus};
 
+/// Map task status to display color
+fn status_color(status: TaskStatus) -> Color {
+    match status {
+        TaskStatus::InProgress => Color::Blue,
+        TaskStatus::Stop => Color::Yellow,
+        TaskStatus::SessionEnded => Color::Gray,
+        TaskStatus::Error => Color::Red,
+    }
+}
+
 /// Application state
 struct App {
     task_manager: TaskManager,
@@ -253,14 +263,7 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     let items: Vec<ListItem> = tasks
         .iter()
         .map(|task| {
-            let status_emoji = task.status.emoji();
-
-            let color = match task.status {
-                TaskStatus::InProgress => Color::Blue,
-                TaskStatus::Stop => Color::Yellow,
-                TaskStatus::SessionEnded => Color::Gray,
-                TaskStatus::Error => Color::Red,
-            };
+            let color = status_color(task.status);
 
             // Extract directory name from path
             let dir_name = std::path::Path::new(&task.worktree_path)
@@ -269,7 +272,7 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
                 .unwrap_or("unknown");
 
             let line = Line::from(vec![
-                Span::raw(format!("{} ", status_emoji)),
+                Span::raw(format!("{} ", task.status.emoji())),
                 Span::styled(format!("{:20}", dir_name), Style::default().fg(Color::Cyan)),
                 Span::styled(
                     format!(" {:15}", task.status.description()),
@@ -305,12 +308,7 @@ fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let tasks = app.task_manager.all_tasks();
 
     if let Some(task) = tasks.get(app.selected_index) {
-        let status_color = match task.status {
-            TaskStatus::InProgress => Color::Blue,
-            TaskStatus::Stop => Color::Yellow,
-            TaskStatus::SessionEnded => Color::Gray,
-            TaskStatus::Error => Color::Red,
-        };
+        let color = status_color(task.status);
 
         let detail_lines = vec![
             Line::from(vec![
@@ -323,7 +321,7 @@ fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             ]),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().fg(Color::Cyan)),
-                Span::styled(task.status.description(), Style::default().fg(status_color)),
+                Span::styled(task.status.description(), Style::default().fg(color)),
             ]),
             Line::from(vec![
                 Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
