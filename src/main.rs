@@ -130,12 +130,12 @@ fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
     // Check if directory exists
     if !progress_dir.exists() {
         if opts.should_print() {
-            println!("{}", "✓ No task progress files to clear".green());
+            println!("{}", output::OutputStyle::success("No task progress files to clear"));
         }
         return Ok(());
     }
 
-    // Count .jsonl files
+    // Collect .jsonl files
     let files: Vec<_> = fs::read_dir(&progress_dir)
         .with_context(|| format!("Failed to read directory: {}", progress_dir.display()))?
         .filter_map(|e| e.ok())
@@ -145,19 +145,17 @@ fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
 
     if files.is_empty() {
         if opts.should_print() {
-            println!("{}", "✓ No task progress files to clear".green());
+            println!("{}", output::OutputStyle::success("No task progress files to clear"));
         }
         return Ok(());
     }
-
-    let file_count = files.len();
 
     // Confirm unless --force
     if !args.force {
         println!(
             "Found {} task progress file(s) in {}",
-            file_count,
-            progress_dir.display().to_string().cyan()
+            files.len(),
+            output::OutputStyle::path(&progress_dir)
         );
         print!("Clear all files? [y/N]: ");
         io::stdout().flush()?;
@@ -172,17 +170,15 @@ fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
     }
 
     // Delete files
-    let mut deleted = 0;
     for file in &files {
         fs::remove_file(file)
             .with_context(|| format!("Failed to delete file: {}", file.display()))?;
-        deleted += 1;
     }
 
     if opts.should_print() {
         println!(
             "{}",
-            format!("✓ Cleared {} task progress file(s)", deleted).green()
+            output::OutputStyle::success(&format!("Cleared {} task progress file(s)", files.len()))
         );
     }
 
