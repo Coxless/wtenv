@@ -98,7 +98,10 @@ impl App {
     fn refresh(&mut self) -> Result<()> {
         // Refresh Claude Code task progress (only reloads changed files)
         if let Err(e) = self.task_manager.refresh() {
-            eprintln!("Warning: Failed to refresh Claude Code task progress: {}", e);
+            eprintln!(
+                "Warning: Failed to refresh Claude Code task progress: {}",
+                e
+            );
         }
 
         // Maintain selection state
@@ -194,10 +197,10 @@ fn ui(f: &mut Frame, app: &mut App) {
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Min(10),    // Task list
-            Constraint::Length(8),  // Task details
-            Constraint::Length(3),  // Footer
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Task list
+            Constraint::Length(8), // Task details
+            Constraint::Length(3), // Footer
         ])
         .split(f.area());
 
@@ -234,13 +237,15 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     let tasks = app.task_manager.all_tasks();
 
     if tasks.is_empty() {
-        let empty = Paragraph::new("No Claude Code tasks found\n\nMake sure hooks are initialized with: ccmon init")
-            .style(Style::default().fg(Color::DarkGray))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Claude Code Tasks"),
-            );
+        let empty = Paragraph::new(
+            "No Claude Code tasks found\n\nMake sure hooks are initialized with: ccmon init",
+        )
+        .style(Style::default().fg(Color::DarkGray))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Claude Code Tasks"),
+        );
         f.render_widget(empty, area);
         return;
     }
@@ -336,11 +341,8 @@ fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             ]),
         ];
 
-        let detail = Paragraph::new(detail_lines).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Task Details"),
-        );
+        let detail = Paragraph::new(detail_lines)
+            .block(Block::default().borders(Borders::ALL).title("Task Details"));
         f.render_widget(detail, area);
     } else {
         let empty = Paragraph::new("No task selected")

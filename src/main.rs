@@ -72,8 +72,7 @@ fn main() -> Result<()> {
 
 /// init subcommand - creates Claude Code hooks (default behavior)
 fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
-    let current_dir =
-        std::env::current_dir().context("Failed to get current directory")?;
+    let current_dir = std::env::current_dir().context("Failed to get current directory")?;
 
     if opts.should_print() {
         println!("{}", "Initializing Claude Code hooks...".blue());
