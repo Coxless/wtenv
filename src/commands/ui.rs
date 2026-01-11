@@ -50,7 +50,7 @@ impl App {
         };
 
         let mut list_state = ListState::default();
-        let tasks = task_manager.all_tasks();
+        let tasks = task_manager.latest_tasks_by_worktree();
         if !tasks.is_empty() {
             list_state.select(Some(0));
         }
@@ -66,7 +66,7 @@ impl App {
     }
 
     fn next(&mut self) {
-        let tasks = self.task_manager.all_tasks();
+        let tasks = self.task_manager.latest_tasks_by_worktree();
         if tasks.is_empty() {
             return;
         }
@@ -86,7 +86,7 @@ impl App {
     }
 
     fn previous(&mut self) {
-        let tasks = self.task_manager.all_tasks();
+        let tasks = self.task_manager.latest_tasks_by_worktree();
         if tasks.is_empty() {
             return;
         }
@@ -115,7 +115,7 @@ impl App {
         }
 
         // Maintain selection state
-        let tasks = self.task_manager.all_tasks();
+        let tasks = self.task_manager.latest_tasks_by_worktree();
         if self.selected_index >= tasks.len() {
             self.selected_index = tasks.len().saturating_sub(1);
         }
@@ -232,7 +232,7 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     // Footer
     let active_tasks = app.task_manager.active_tasks().len();
-    let total_tasks = app.task_manager.all_tasks().len();
+    let total_tasks = app.task_manager.latest_tasks_by_worktree().len();
     let footer_text = format!(
         "Active: {} | Total: {} | Press r to refresh, q to quit",
         active_tasks, total_tasks
@@ -244,7 +244,7 @@ fn ui(f: &mut Frame, app: &mut App) {
 }
 
 fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
-    let tasks = app.task_manager.all_tasks();
+    let tasks = app.task_manager.latest_tasks_by_worktree();
 
     if tasks.is_empty() {
         let empty = Paragraph::new(
@@ -305,7 +305,7 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 }
 
 fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
-    let tasks = app.task_manager.all_tasks();
+    let tasks = app.task_manager.latest_tasks_by_worktree();
 
     if let Some(task) = tasks.get(app.selected_index) {
         let color = status_color(task.status);

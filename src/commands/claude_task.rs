@@ -348,6 +348,33 @@ impl TaskManager {
             .collect()
     }
 
+    /// Get the latest task for each unique worktree path
+    /// Returns tasks grouped by worktree, keeping only the most recent session for each
+    pub fn latest_tasks_by_worktree(&self) -> Vec<&ClaudeTask> {
+        // Group tasks by worktree_path, keeping only the most recent
+        let mut worktree_latest: HashMap<&str, &ClaudeTask> = HashMap::new();
+
+        for task in self.tasks.values() {
+            let worktree = task.worktree_path.as_str();
+
+            match worktree_latest.get(worktree) {
+                Some(existing) => {
+                    if task.last_update > existing.last_update {
+                        worktree_latest.insert(worktree, task);
+                    }
+                }
+                None => {
+                    worktree_latest.insert(worktree, task);
+                }
+            }
+        }
+
+        // Collect and sort by last_update (most recent first)
+        let mut tasks: Vec<_> = worktree_latest.into_values().collect();
+        tasks.sort_by(|a, b| b.last_update.cmp(&a.last_update));
+        tasks
+    }
+
     /// Get task by session ID
     pub fn get_task(&self, session_id: &str) -> Option<&ClaudeTask> {
         self.tasks.get(session_id)
@@ -848,5 +875,56 @@ mod tests {
         assert_eq!(active.len(), 1);
         assert_eq!(active[0].session_id, "prompt_submitted");
         assert_eq!(active[0].status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_latest_tasks_by_worktree() {
+        let mut manager = TaskManager::new();
+
+        // Add two sessions for the same worktree (older one)
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now() - chrono::Duration::seconds(100),
+            session_id: "old_session".to_string(),
+            event: "PostToolUse".to_string(),
+            tool: Some("Read".to_string()),
+            status: Some(TaskStatus::SessionEnded),
+            message: "Old session".to_string(),
+            cwd: "/home/user/project".to_string(),
+        });
+
+        // Add newer session for same worktree
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "new_session".to_string(),
+            event: "PostToolUse".to_string(),
+            tool: Some("Write".to_string()),
+            status: Some(TaskStatus::InProgress),
+            message: "New session".to_string(),
+            cwd: "/home/user/project".to_string(),
+        });
+
+        // Add session for different worktree
+        manager.add_event(TaskEvent {
+            timestamp: Utc::now(),
+            session_id: "other_session".to_string(),
+            event: "PostToolUse".to_string(),
+            tool: Some("Bash".to_string()),
+            status: Some(TaskStatus::InProgress),
+            message: "Other project".to_string(),
+            cwd: "/home/user/other-project".to_string(),
+        });
+
+        let latest = manager.latest_tasks_by_worktree();
+
+        // Should have 2 worktrees, not 3 sessions
+        assert_eq!(latest.len(), 2);
+
+        // The /home/user/project worktree should show new_session (most recent)
+        let project_task = latest
+            .iter()
+            .find(|t| t.worktree_path == "/home/user/project")
+            .expect("Should find project task");
+        assert_eq!(project_task.session_id, "new_session");
+        assert_eq!(project_task.status, TaskStatus::InProgress);
     }
 }
