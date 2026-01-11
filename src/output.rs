@@ -36,17 +36,18 @@ impl OutputStyle {
     }
 }
 
-/// プログレスバー作成
+/// Create a styled progress bar for displaying operation progress
+#[allow(dead_code)]
 pub fn create_progress_bar(len: u64, msg: &str) -> indicatif::ProgressBar {
     use indicatif::{ProgressBar, ProgressStyle};
 
     let pb = ProgressBar::new(len);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-            .unwrap()
-            .progress_chars("#>-"),
-    );
+    // Template is a compile-time constant, so this should never fail
+    let style = ProgressStyle::default_bar()
+        .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+        .expect("Invalid progress bar template - this is a bug")
+        .progress_chars("#>-");
+    pb.set_style(style);
     pb.set_message(msg.to_string());
     pb
 }
@@ -68,6 +69,7 @@ pub fn create_progress_bar(len: u64, msg: &str) -> indicatif::ProgressBar {
 /// assert_eq!(format_size(1048576), "1.00 MB");
 /// assert_eq!(format_size(500), "500 B");
 /// ```
+#[allow(dead_code)]
 pub fn format_size(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;

@@ -205,17 +205,12 @@ impl ClaudeTask {
 
     /// Check if task has actually started (not just SessionStart)
     pub fn has_started(&self) -> bool {
-        // Task has started if there are events beyond SessionStart
-        if self.events.len() > 1 {
-            return true;
-        }
-
-        // If only one event, check if it's not SessionStart
-        if let Some(first_event) = self.events.first() {
-            first_event.event != "SessionStart"
-        } else {
-            false
-        }
+        // Task has started if there are multiple events or single non-SessionStart event
+        self.events.len() > 1
+            || self
+                .events
+                .first()
+                .is_some_and(|e| e.event != "SessionStart")
     }
 }
 
