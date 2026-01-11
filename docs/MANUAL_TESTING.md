@@ -35,11 +35,10 @@ ccmon --help
 ccmon -h
 ccmon init --help
 ccmon ui --help
-ccmon notify --help
 ```
 
 **期待結果:**
-- [ ] サブコマンド一覧が表示される（init, ui, notify）
+- [ ] サブコマンド一覧が表示される（init, ui）
 - [ ] 各オプションの説明が表示される
 - [ ] "Claude Code Monitor" が表示される
 
@@ -159,70 +158,9 @@ ccmon ui
 
 ---
 
-## 4. notify コマンド
+## 4. グローバルオプション
 
-### 4.1 成功時通知
-
-```bash
-ccmon notify "echo 'success'"
-```
-
-**期待結果:**
-- [ ] コマンドが実行される
-- [ ] "success" が出力される
-- [ ] デスクトップ通知が表示される（Linux環境）
-- [ ] "Command succeeded" メッセージが表示される
-
-### 4.2 失敗時通知
-
-```bash
-ccmon notify "exit 1"
-```
-
-**期待結果:**
-- [ ] エラー通知が表示される
-- [ ] "Command failed" メッセージが表示される
-- [ ] 終了コードがエラーとして返される
-
-### 4.3 作業ディレクトリ指定
-
-```bash
-ccmon notify "pwd" -d /tmp
-ccmon notify "pwd" --dir /tmp
-```
-
-**期待結果:**
-- [ ] `/tmp` で実行される
-- [ ] 出力に `/tmp` が含まれる
-
-### 4.4 通知オプション
-
-```bash
-# 成功時の通知を無効化
-ccmon notify "echo test" --notify-success=false
-
-# エラー時の通知を無効化
-ccmon notify "exit 1" --notify-error=false
-```
-
-**期待結果:**
-- [ ] 指定したタイプの通知が抑制される
-
-### 4.5 存在しないディレクトリ
-
-```bash
-ccmon notify "echo test" -d /nonexistent/path
-```
-
-**期待結果:**
-- [ ] 適切なエラーメッセージが表示される
-- [ ] "Working directory does not exist" エラー
-
----
-
-## 5. グローバルオプション
-
-### 5.1 詳細モード
+### 4.1 詳細モード
 
 ```bash
 ccmon -v init
@@ -232,11 +170,11 @@ ccmon --verbose init --force
 **期待結果:**
 - [ ] 詳細情報が追加表示される
 
-### 5.2 サイレントモード
+### 4.2 サイレントモード
 
 ```bash
 ccmon -q init --force
-ccmon --quiet notify "echo test"
+ccmon --quiet ui
 ```
 
 **期待結果:**
@@ -245,9 +183,9 @@ ccmon --quiet notify "echo test"
 
 ---
 
-## 6. エラーハンドリング
+## 5. エラーハンドリング
 
-### 6.1 無効なコマンド
+### 5.1 無効なコマンド
 
 ```bash
 ccmon invalid-command
@@ -257,20 +195,11 @@ ccmon invalid-command
 - [ ] 適切なエラーメッセージが表示される
 - [ ] 有効なコマンド一覧が表示される
 
-### 6.2 必須引数の欠落
-
-```bash
-ccmon notify
-```
-
-**期待結果:**
-- [ ] 引数が必要というエラーが表示される
-
 ---
 
-## 7. hooks 動作確認
+## 6. hooks 動作確認
 
-### 7.1 session-init.sh
+### 6.1 session-init.sh
 
 ```bash
 cd /tmp/ccmon-test-repo
@@ -282,7 +211,7 @@ cd /tmp/ccmon-test-repo
 - [ ] ブランチ情報が表示される
 - [ ] 最近のコミットが表示される
 
-### 7.2 track-progress.py
+### 6.2 track-progress.py
 
 ```bash
 echo '{"session_id":"test","hook_event_name":"SessionStart","cwd":"/tmp"}' | ./.claude/hooks/track-progress.py
@@ -293,7 +222,7 @@ cat ~/.claude/task-progress/test.jsonl
 - [ ] JSONL ファイルにイベントが記録される
 - [ ] タイムスタンプが含まれる
 
-### 7.3 stop-hook-git-check.sh
+### 6.3 stop-hook-git-check.sh
 
 ```bash
 # クリーンな状態で
@@ -313,9 +242,9 @@ rm uncommitted.txt
 
 ---
 
-## 8. パフォーマンス確認
+## 7. パフォーマンス確認
 
-### 8.1 起動時間
+### 7.1 起動時間
 
 ```bash
 time ccmon --help
@@ -324,7 +253,7 @@ time ccmon --help
 **期待結果:**
 - [ ] 50ms未満
 
-### 8.2 バイナリサイズ
+### 7.2 バイナリサイズ
 
 ```bash
 ls -lh target/release/ccmon
@@ -335,7 +264,7 @@ ls -lh target/release/ccmon
 
 ---
 
-## 9. クリーンアップ
+## 8. クリーンアップ
 
 ```bash
 # テスト用データを削除
@@ -353,9 +282,8 @@ rm -f ~/.claude/task-progress/test*.jsonl
 | 基本コマンド | 2 | [ ] |
 | init | 4 | [ ] |
 | ui | 4 | [ ] |
-| notify | 5 | [ ] |
 | グローバルオプション | 2 | [ ] |
-| エラーハンドリング | 2 | [ ] |
+| エラーハンドリング | 1 | [ ] |
 | hooks 動作 | 3 | [ ] |
 | パフォーマンス | 2 | [ ] |
 

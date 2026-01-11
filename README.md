@@ -6,7 +6,6 @@ Real-time task progress monitoring for Claude Code parallel development sessions
 
 - **Real-time Claude Code task monitoring** - Track multiple Claude Code sessions across worktrees
 - **Interactive TUI** - Visual dashboard showing task status, duration, and last activity
-- **Desktop notifications** - Get notified when commands complete
 - **Auto-refresh** - UI automatically updates every second
 - **Claude Code hooks** - Automatic task progress tracking via hooks
 
@@ -46,9 +45,6 @@ ccmon init
 
 # Launch interactive TUI
 ccmon ui
-
-# Run command with desktop notification
-ccmon notify "cargo build"
 ```
 
 ## Setup
@@ -120,25 +116,6 @@ ccmon ui
 - Working directory
 - Current status and duration
 - Last activity (tool used, file edited, etc.)
-
-### `ccmon notify <command>`
-
-Execute a command with desktop notification on completion.
-
-```bash
-# Run build with notification
-ccmon notify "cargo build --release"
-
-# Run tests with notification
-ccmon notify "cargo test"
-
-# Run in specific directory
-ccmon notify --dir ./project "npm test"
-
-# Control notification behavior
-ccmon notify --notify-success=false "npm run lint"  # No success notification
-ccmon notify --notify-error=false "make check"      # No error notification
-```
 
 ## Global Options
 

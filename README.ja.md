@@ -6,7 +6,6 @@ Claude Code の並列開発セッションをリアルタイムで監視する�
 
 - **Claude Code タスクのリアルタイム監視** - 複数の Claude Code セッションを同時に追跡
 - **インタラクティブ TUI** - タスク状態、経過時間、最後のアクティビティを表示
-- **デスクトップ通知** - コマンド完了時に通知
 - **自動更新** - UI が1秒ごとに自動更新
 - **Claude Code hooks** - hooks による自動タスク進捗追跡
 
@@ -46,9 +45,6 @@ ccmon init
 
 # インタラクティブ TUI を起動
 ccmon ui
-
-# デスクトップ通知付きでコマンド実行
-ccmon notify "cargo build"
 ```
 
 ## セットアップ
@@ -120,25 +116,6 @@ ccmon ui
 - 作業ディレクトリ
 - 現在のステータスと経過時間
 - 最後のアクティビティ（使用ツール、編集ファイルなど）
-
-### `ccmon notify <command>`
-
-デスクトップ通知付きでコマンドを実行。
-
-```bash
-# ビルドを通知付きで実行
-ccmon notify "cargo build --release"
-
-# テストを通知付きで実行
-ccmon notify "cargo test"
-
-# 特定のディレクトリで実行
-ccmon notify --dir ./project "npm test"
-
-# 通知の制御
-ccmon notify --notify-success=false "npm run lint"  # 成功時の通知なし
-ccmon notify --notify-error=false "make check"      # エラー時の通知なし
-```
 
 ## グローバルオプション
 
