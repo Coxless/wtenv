@@ -2,25 +2,25 @@
 
 ## Requirements
 
-- Git 2.5+ (for worktree support)
-- Rust 1.92+ (for building from source)
+- Rust 1.91+ (for building from source)
+- Python 3.6+ (for Claude Code hooks)
 
 ## Installation Methods
 
 ### From Binary (Recommended)
 
 ```bash
-curl -L https://github.com/Coxless/wtenv/releases/latest/download/wtenv-linux-x64 -o wtenv
-chmod +x wtenv
-sudo mv wtenv /usr/local/bin/
+curl -L https://github.com/Coxless/ccmon/releases/latest/download/ccmon-linux-x64 -o ccmon
+chmod +x ccmon
+sudo mv ccmon /usr/local/bin/
 ```
 
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/Coxless/wtenv.git
-cd wtenv
+git clone https://github.com/Coxless/ccmon.git
+cd ccmon
 
 # Build and install
 cargo install --path .
@@ -29,7 +29,22 @@ cargo install --path .
 ## Verification
 
 ```bash
-wtenv --version
+ccmon --version
+```
+
+## Post-Installation Setup
+
+Initialize Claude Code hooks in your project:
+
+```bash
+cd /path/to/your/project
+ccmon init
+```
+
+To enable hooks globally for all projects:
+
+```bash
+cp .claude/settings.json ~/.claude/settings.json
 ```
 
 ## Troubleshooting
@@ -42,21 +57,36 @@ Ensure the installation directory is in your PATH:
 echo $PATH
 ```
 
+For cargo install, add `~/.cargo/bin` to your PATH:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
 ### Permission denied
 
 Make sure the binary has execute permissions:
 
 ```bash
-chmod +x /path/to/wtenv
+chmod +x /path/to/ccmon
 ```
 
-### Git worktree errors
+### Hooks not working
 
-Ensure you have Git 2.5 or later:
+1. Verify Python 3 is available:
+   ```bash
+   python3 --version
+   ```
 
-```bash
-git --version
-```
+2. Check hook files have execute permissions:
+   ```bash
+   ls -la .claude/hooks/
+   ```
+
+3. Verify settings.json is properly configured:
+   ```bash
+   cat .claude/settings.json
+   ```
 
 ## Updating
 
@@ -67,7 +97,7 @@ Download the latest release and replace the existing binary.
 ### From Source
 
 ```bash
-cd wtenv
+cd ccmon
 git pull
 cargo install --path . --force
 ```
