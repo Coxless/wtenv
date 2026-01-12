@@ -6,6 +6,8 @@ mod output;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use colored::Colorize;
+use std::fs;
+use std::io::{self, Write};
 
 #[derive(Parser)]
 #[command(name = "ccmon")]
@@ -29,11 +31,20 @@ enum Commands {
     Init(InitArgs),
     /// Interactive TUI for Claude Code task progress
     Ui,
+    /// Clear task progress history
+    Clear(ClearArgs),
 }
 
 #[derive(Args)]
 struct InitArgs {
     /// Overwrite existing configuration
+    #[arg(short, long)]
+    force: bool,
+}
+
+#[derive(Args)]
+struct ClearArgs {
+    /// Skip confirmation prompt
     #[arg(short, long)]
     force: bool,
 }
@@ -63,6 +74,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Init(args) => cmd_init(args, opts),
         Commands::Ui => cmd_ui(),
+        Commands::Clear(args) => cmd_clear(args, opts),
     }
 }
 
@@ -107,4 +119,74 @@ fn cmd_init(args: InitArgs, opts: OutputOptions) -> Result<()> {
 /// ui subcommand
 fn cmd_ui() -> Result<()> {
     commands::ui::execute()
+}
+
+/// clear subcommand - clears task progress history
+fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
+    use commands::claude_task::TaskManager;
+
+    let progress_dir = TaskManager::get_progress_dir();
+
+    // Check if directory exists
+    if !progress_dir.exists() {
+        if opts.should_print() {
+            println!(
+                "{}",
+                output::OutputStyle::success("No task progress files to clear")
+            );
+        }
+        return Ok(());
+    }
+
+    // Collect .jsonl files
+    let files: Vec<_> = fs::read_dir(&progress_dir)
+        .with_context(|| format!("Failed to read directory: {}", progress_dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("jsonl"))
+        .collect();
+
+    if files.is_empty() {
+        if opts.should_print() {
+            println!(
+                "{}",
+                output::OutputStyle::success("No task progress files to clear")
+            );
+        }
+        return Ok(());
+    }
+
+    // Confirm unless --force
+    if !args.force {
+        println!(
+            "Found {} task progress file(s) in {}",
+            files.len(),
+            output::OutputStyle::path(&progress_dir)
+        );
+        print!("Clear all files? [y/N]: ");
+        io::stdout().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        if !input.trim().eq_ignore_ascii_case("y") {
+            println!("{}", "Cancelled".yellow());
+            return Ok(());
+        }
+    }
+
+    // Delete files
+    for file in &files {
+        fs::remove_file(file)
+            .with_context(|| format!("Failed to delete file: {}", file.display()))?;
+    }
+
+    if opts.should_print() {
+        println!(
+            "{}",
+            output::OutputStyle::success(&format!("Cleared {} task progress file(s)", files.len()))
+        );
+    }
+
+    Ok(())
 }
