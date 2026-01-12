@@ -173,8 +173,8 @@ impl ClaudeTask {
     fn new(event: TaskEvent) -> Self {
         let start_time = event.timestamp;
         let last_update = event.timestamp;
-        // Default to InProgress if status is not provided
-        let status = event.status.unwrap_or(TaskStatus::InProgress);
+        // Default to Stop if status is not provided (e.g., SessionStart event)
+        let status = event.status.unwrap_or(TaskStatus::Stop);
         let worktree_path = event.cwd.clone();
         let last_message = event.message.clone();
         let session_id = event.session_id.clone();
