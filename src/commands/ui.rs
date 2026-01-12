@@ -18,6 +18,39 @@ use std::time::{Duration, Instant};
 
 use crate::commands::claude_task::{get_git_project_info, GitProjectInfo, TaskManager, TaskStatus};
 
+/// Display mode based on terminal height
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum DisplayMode {
+    /// Full display (height >= 27): All 6 detail lines
+    Full,
+    /// Compact display (height 20-26): 3 priority lines only
+    Compact,
+    /// Minimal display (height < 20): No details, info in task list
+    Minimal,
+}
+
+impl DisplayMode {
+    /// Determine display mode from terminal height
+    fn from_height(height: u16) -> Self {
+        if height >= 27 {
+            DisplayMode::Full
+        } else if height >= 20 {
+            DisplayMode::Compact
+        } else {
+            DisplayMode::Minimal
+        }
+    }
+
+    /// Get the height constraint for task details panel
+    fn details_height(&self) -> u16 {
+        match self {
+            DisplayMode::Full => 9,    // 6 lines + border
+            DisplayMode::Compact => 6, // 3 lines + border
+            DisplayMode::Minimal => 0, // Hidden
+        }
+    }
+}
+
 /// Map task status to display color
 fn status_color(status: TaskStatus) -> Color {
     match status {
@@ -219,15 +252,30 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut app: Ap
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
+    let height = f.area().height;
+    let mode = DisplayMode::from_height(height);
+    let details_height = mode.details_height();
+
+    // Build constraints based on display mode
+    let constraints: Vec<Constraint> = if mode == DisplayMode::Minimal {
+        vec![
+            Constraint::Length(3), // Header
+            Constraint::Min(5),    // Task list (expanded)
+            Constraint::Length(3), // Footer
+        ]
+    } else {
+        vec![
+            Constraint::Length(3),              // Header
+            Constraint::Min(5),                 // Task list
+            Constraint::Length(details_height), // Task details
+            Constraint::Length(3),              // Footer
+        ]
+    };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
-        .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Min(10),   // Task list
-            Constraint::Length(9), // Task details (6 lines + border)
-            Constraint::Length(3), // Footer
-        ])
+        .constraints(constraints)
         .split(f.area());
 
     // Header
@@ -241,12 +289,19 @@ fn ui(f: &mut Frame, app: &mut App) {
     f.render_widget(header, chunks[0]);
 
     // Task list
-    render_task_list(f, app, chunks[1]);
+    render_task_list(f, app, chunks[1], mode);
 
-    // Task details
-    render_task_details(f, app, chunks[2]);
+    // Task details (only if not Minimal mode)
+    if mode != DisplayMode::Minimal {
+        render_task_details(f, app, chunks[2], mode);
+    }
 
     // Footer
+    let footer_chunk = if mode == DisplayMode::Minimal {
+        chunks[2]
+    } else {
+        chunks[3]
+    };
     let active_tasks = app.task_manager.active_tasks().len();
     let total_tasks = app.task_manager.latest_tasks_by_worktree().len();
     let footer_text = format!(
@@ -256,10 +311,10 @@ fn ui(f: &mut Frame, app: &mut App) {
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::ALL));
-    f.render_widget(footer, chunks[3]);
+    f.render_widget(footer, footer_chunk);
 }
 
-fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
+fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, mode: DisplayMode) {
     let tasks = app.task_manager.latest_tasks_by_worktree();
 
     if tasks.is_empty() {
@@ -294,7 +349,7 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         .map(|(task, display_name)| {
             let color = status_color(task.status);
 
-            let line = Line::from(vec![
+            let main_line = Line::from(vec![
                 Span::raw(format!("{} ", task.status.emoji())),
                 Span::styled(
                     format!("{:28}", display_name),
@@ -310,7 +365,16 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
                 ),
             ]);
 
-            ListItem::new(line)
+            // In Minimal mode, add Last activity as second line
+            if mode == DisplayMode::Minimal {
+                let activity_line = Line::from(vec![
+                    Span::raw("      "),
+                    Span::styled(&task.last_message, Style::default().fg(Color::DarkGray)),
+                ]);
+                ListItem::new(vec![main_line, activity_line])
+            } else {
+                ListItem::new(main_line)
+            }
         })
         .collect();
 
@@ -330,7 +394,7 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     f.render_stateful_widget(list, area, &mut app.list_state);
 }
 
-fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect, mode: DisplayMode) {
     let tasks = app.task_manager.latest_tasks_by_worktree();
 
     let Some(task) = tasks.get(app.selected_index) else {
@@ -349,32 +413,61 @@ fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         .map(|info| info.display_name())
         .unwrap_or_else(|| task.worktree_path.clone());
 
-    let detail_lines = vec![
-        Line::from(vec![
-            Span::styled("Project: ", Style::default().fg(Color::Cyan)),
-            Span::raw(project_name),
-        ]),
-        Line::from(vec![
-            Span::styled("Session: ", Style::default().fg(Color::Cyan)),
-            Span::raw(&task.session_id[..12.min(task.session_id.len())]),
-        ]),
-        Line::from(vec![
-            Span::styled("Directory: ", Style::default().fg(Color::Cyan)),
-            Span::raw(&task.worktree_path),
-        ]),
-        Line::from(vec![
-            Span::styled("Status: ", Style::default().fg(Color::Cyan)),
-            Span::styled(task.status.description(), Style::default().fg(color)),
-        ]),
-        Line::from(vec![
-            Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
-            Span::raw(task.duration_string()),
-        ]),
-        Line::from(vec![
-            Span::styled("Last activity: ", Style::default().fg(Color::Cyan)),
-            Span::raw(&task.last_message),
-        ]),
-    ];
+    // Build detail lines based on display mode
+    let detail_lines = match mode {
+        DisplayMode::Full => {
+            // Full mode: all 6 lines
+            vec![
+                Line::from(vec![
+                    Span::styled("Project: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(project_name),
+                ]),
+                Line::from(vec![
+                    Span::styled("Session: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(&task.session_id[..12.min(task.session_id.len())]),
+                ]),
+                Line::from(vec![
+                    Span::styled("Directory: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(&task.worktree_path),
+                ]),
+                Line::from(vec![
+                    Span::styled("Status: ", Style::default().fg(Color::Cyan)),
+                    Span::styled(task.status.description(), Style::default().fg(color)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(task.duration_string()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Last activity: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(&task.last_message),
+                ]),
+            ]
+        }
+        DisplayMode::Compact => {
+            // Compact mode: 3 priority lines (Project+Status, Duration, Last activity)
+            vec![
+                Line::from(vec![
+                    Span::styled("Project: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(project_name),
+                    Span::raw("  "),
+                    Span::styled(task.status.description(), Style::default().fg(color)),
+                ]),
+                Line::from(vec![
+                    Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(task.duration_string()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Activity: ", Style::default().fg(Color::Cyan)),
+                    Span::raw(&task.last_message),
+                ]),
+            ]
+        }
+        DisplayMode::Minimal => {
+            // Minimal mode: not rendered (handled in ui())
+            vec![]
+        }
+    };
 
     let detail = Paragraph::new(detail_lines)
         .block(Block::default().borders(Borders::ALL).title("Task Details"));
