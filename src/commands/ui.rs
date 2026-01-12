@@ -12,10 +12,11 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
 };
+use std::collections::HashMap;
 use std::io;
 use std::time::{Duration, Instant};
 
-use crate::commands::claude_task::{TaskManager, TaskStatus};
+use crate::commands::claude_task::{get_git_project_info, GitProjectInfo, TaskManager, TaskStatus};
 
 /// Map task status to display color
 fn status_color(status: TaskStatus) -> Color {
@@ -35,6 +36,8 @@ struct App {
     should_quit: bool,
     last_refresh: Instant,
     auto_refresh_interval: Duration,
+    /// Cache for git project info (worktree_path -> info)
+    git_info_cache: HashMap<String, GitProjectInfo>,
 }
 
 impl App {
@@ -62,6 +65,7 @@ impl App {
             should_quit: false,
             last_refresh: Instant::now(),
             auto_refresh_interval: Duration::from_secs(1), // Auto-refresh every 1 second
+            git_info_cache: HashMap::new(),
         })
     }
 
@@ -136,6 +140,18 @@ impl App {
         }
         Ok(())
     }
+
+    /// Get project display name for a worktree path, using cache
+    fn get_project_name(&mut self, worktree_path: &str) -> String {
+        if !self.git_info_cache.contains_key(worktree_path) {
+            let info = get_git_project_info(worktree_path);
+            self.git_info_cache.insert(worktree_path.to_string(), info);
+        }
+        self.git_info_cache
+            .get(worktree_path)
+            .map(|info| info.display_name())
+            .unwrap_or_else(|| worktree_path.to_string())
+    }
 }
 
 /// Execute UI command
@@ -209,7 +225,7 @@ fn ui(f: &mut Frame, app: &mut App) {
         .constraints([
             Constraint::Length(3), // Header
             Constraint::Min(10),   // Task list
-            Constraint::Length(8), // Task details
+            Constraint::Length(9), // Task details (6 lines + border)
             Constraint::Length(3), // Footer
         ])
         .split(f.area());
@@ -260,20 +276,27 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
         return;
     }
 
+    // Collect worktree paths first to release the borrow on app
+    let worktree_paths: Vec<String> = tasks.iter().map(|t| t.worktree_path.clone()).collect();
+    drop(tasks);
+
+    // Pre-compute display names (populates cache)
+    let display_names: Vec<String> = worktree_paths
+        .iter()
+        .map(|path| app.get_project_name(path))
+        .collect();
+
+    // Re-borrow tasks for rendering
+    let tasks = app.task_manager.latest_tasks_by_worktree();
     let items: Vec<ListItem> = tasks
         .iter()
-        .map(|task| {
+        .zip(display_names.iter())
+        .map(|(task, display_name)| {
             let color = status_color(task.status);
-
-            // Extract directory name from path
-            let dir_name = std::path::Path::new(&task.worktree_path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown");
 
             let line = Line::from(vec![
                 Span::raw(format!("{} ", task.status.emoji())),
-                Span::styled(format!("{:20}", dir_name), Style::default().fg(Color::Cyan)),
+                Span::styled(format!("{:28}", display_name), Style::default().fg(Color::Cyan)),
                 Span::styled(
                     format!(" {:15}", task.status.description()),
                     Style::default().fg(color),
@@ -307,38 +330,50 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 fn render_task_details(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let tasks = app.task_manager.latest_tasks_by_worktree();
 
-    if let Some(task) = tasks.get(app.selected_index) {
-        let color = status_color(task.status);
-
-        let detail_lines = vec![
-            Line::from(vec![
-                Span::styled("Session: ", Style::default().fg(Color::Cyan)),
-                Span::raw(&task.session_id[..12.min(task.session_id.len())]),
-            ]),
-            Line::from(vec![
-                Span::styled("Directory: ", Style::default().fg(Color::Cyan)),
-                Span::raw(&task.worktree_path),
-            ]),
-            Line::from(vec![
-                Span::styled("Status: ", Style::default().fg(Color::Cyan)),
-                Span::styled(task.status.description(), Style::default().fg(color)),
-            ]),
-            Line::from(vec![
-                Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
-                Span::raw(task.duration_string()),
-            ]),
-            Line::from(vec![
-                Span::styled("Last activity: ", Style::default().fg(Color::Cyan)),
-                Span::raw(&task.last_message),
-            ]),
-        ];
-
-        let detail = Paragraph::new(detail_lines)
-            .block(Block::default().borders(Borders::ALL).title("Task Details"));
-        f.render_widget(detail, area);
-    } else {
+    let Some(task) = tasks.get(app.selected_index) else {
         let empty = Paragraph::new("No task selected")
             .block(Block::default().borders(Borders::ALL).title("Task Details"));
         f.render_widget(empty, area);
-    }
+        return;
+    };
+
+    let color = status_color(task.status);
+
+    // Get project display name from cache (populated by render_task_list)
+    let project_name = app
+        .git_info_cache
+        .get(&task.worktree_path)
+        .map(|info| info.display_name())
+        .unwrap_or_else(|| task.worktree_path.clone());
+
+    let detail_lines = vec![
+        Line::from(vec![
+            Span::styled("Project: ", Style::default().fg(Color::Cyan)),
+            Span::raw(project_name),
+        ]),
+        Line::from(vec![
+            Span::styled("Session: ", Style::default().fg(Color::Cyan)),
+            Span::raw(&task.session_id[..12.min(task.session_id.len())]),
+        ]),
+        Line::from(vec![
+            Span::styled("Directory: ", Style::default().fg(Color::Cyan)),
+            Span::raw(&task.worktree_path),
+        ]),
+        Line::from(vec![
+            Span::styled("Status: ", Style::default().fg(Color::Cyan)),
+            Span::styled(task.status.description(), Style::default().fg(color)),
+        ]),
+        Line::from(vec![
+            Span::styled("Duration: ", Style::default().fg(Color::Cyan)),
+            Span::raw(task.duration_string()),
+        ]),
+        Line::from(vec![
+            Span::styled("Last activity: ", Style::default().fg(Color::Cyan)),
+            Span::raw(&task.last_message),
+        ]),
+    ];
+
+    let detail = Paragraph::new(detail_lines)
+        .block(Block::default().borders(Borders::ALL).title("Task Details"));
+    f.render_widget(detail, area);
 }

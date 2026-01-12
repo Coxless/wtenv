@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::SystemTime;
 
 /// Claude Code task status
@@ -52,6 +53,76 @@ impl TaskStatus {
             TaskStatus::Error => "Error",
         }
     }
+}
+
+/// Git project information for display
+#[derive(Debug, Clone, Default)]
+pub struct GitProjectInfo {
+    /// Repository name (e.g., "ccmon")
+    pub repo_name: Option<String>,
+    /// Worktree/directory name (e.g., "fix-prerelease")
+    pub worktree_name: String,
+}
+
+impl GitProjectInfo {
+    /// Format as "repo::worktree" or just "worktree" if repo unavailable
+    pub fn display_name(&self) -> String {
+        match &self.repo_name {
+            Some(repo) => format!("{}::{}", repo, self.worktree_name),
+            None => self.worktree_name.clone(),
+        }
+    }
+}
+
+/// Get git project info from a worktree path
+pub fn get_git_project_info(worktree_path: &str) -> GitProjectInfo {
+    let path = Path::new(worktree_path);
+
+    // Extract worktree name from path
+    let worktree_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    // Try to get repo name from git remote
+    let repo_name = get_repo_name_from_git(path);
+
+    GitProjectInfo {
+        repo_name,
+        worktree_name,
+    }
+}
+
+/// Extract repository name from git remote URL
+fn get_repo_name_from_git(path: &Path) -> Option<String> {
+    let output = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let url = String::from_utf8_lossy(&output.stdout);
+    parse_repo_name_from_url(url.trim())
+}
+
+/// Parse repository name from git URL
+/// Handles: https://github.com/user/repo.git, git@github.com:user/repo.git
+fn parse_repo_name_from_url(url: &str) -> Option<String> {
+    // Remove trailing .git
+    let url = url.trim_end_matches(".git");
+
+    // Extract last path component
+    // For HTTPS: https://github.com/user/repo -> split by '/' -> "repo"
+    // For SSH: git@github.com:user/repo -> split by '/' -> "repo"
+    url.rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
 }
 
 /// Single event from Claude Code session
@@ -926,5 +997,56 @@ mod tests {
             .expect("Should find project task");
         assert_eq!(project_task.session_id, "new_session");
         assert_eq!(project_task.status, TaskStatus::InProgress);
+    }
+
+    #[test]
+    fn test_parse_repo_name_https() {
+        assert_eq!(
+            super::parse_repo_name_from_url("https://github.com/user/ccmon.git"),
+            Some("ccmon".to_string())
+        );
+        assert_eq!(
+            super::parse_repo_name_from_url("https://github.com/user/ccmon"),
+            Some("ccmon".to_string())
+        );
+        assert_eq!(
+            super::parse_repo_name_from_url("https://gitlab.com/group/subgroup/project.git"),
+            Some("project".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_repo_name_ssh() {
+        assert_eq!(
+            super::parse_repo_name_from_url("git@github.com:user/ccmon.git"),
+            Some("ccmon".to_string())
+        );
+        assert_eq!(
+            super::parse_repo_name_from_url("git@github.com:user/ccmon"),
+            Some("ccmon".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_repo_name_edge_cases() {
+        // Empty URL
+        assert_eq!(super::parse_repo_name_from_url(""), None);
+        // Just .git
+        assert_eq!(super::parse_repo_name_from_url(".git"), None);
+    }
+
+    #[test]
+    fn test_git_project_info_display() {
+        let info = GitProjectInfo {
+            repo_name: Some("ccmon".to_string()),
+            worktree_name: "fix-prerelease".to_string(),
+        };
+        assert_eq!(info.display_name(), "ccmon::fix-prerelease");
+
+        let info_no_repo = GitProjectInfo {
+            repo_name: None,
+            worktree_name: "fix-prerelease".to_string(),
+        };
+        assert_eq!(info_no_repo.display_name(), "fix-prerelease");
     }
 }
