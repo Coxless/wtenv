@@ -296,7 +296,10 @@ fn render_task_list(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
 
             let line = Line::from(vec![
                 Span::raw(format!("{} ", task.status.emoji())),
-                Span::styled(format!("{:28}", display_name), Style::default().fg(Color::Cyan)),
+                Span::styled(
+                    format!("{:28}", display_name),
+                    Style::default().fg(Color::Cyan),
+                ),
                 Span::styled(
                     format!(" {:15}", task.status.description()),
                     Style::default().fg(color),

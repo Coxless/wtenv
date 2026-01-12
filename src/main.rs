@@ -130,7 +130,10 @@ fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
     // Check if directory exists
     if !progress_dir.exists() {
         if opts.should_print() {
-            println!("{}", output::OutputStyle::success("No task progress files to clear"));
+            println!(
+                "{}",
+                output::OutputStyle::success("No task progress files to clear")
+            );
         }
         return Ok(());
     }
@@ -145,7 +148,10 @@ fn cmd_clear(args: ClearArgs, opts: OutputOptions) -> Result<()> {
 
     if files.is_empty() {
         if opts.should_print() {
-            println!("{}", output::OutputStyle::success("No task progress files to clear"));
+            println!(
+                "{}",
+                output::OutputStyle::success("No task progress files to clear")
+            );
         }
         return Ok(());
     }
