@@ -1,159 +1,121 @@
-# wtenv - Git Worktree Environment Manager
+# ccmon - Claude Code Monitor
 
-> **Warning**
-> This tool is under development and not stable. Please use with caution.
-
-Fast and user-friendly git worktree management CLI tool.
+Real-time task progress monitoring for Claude Code parallel development sessions.
 
 ## Features
 
-- Easy worktree creation with branch management
-- Automatic environment file copying (based on config)
-- Post-create command execution
-- Interactive mode (no arguments required)
-- Progress indicators and colored output
-- Verbose and quiet output modes
+- **Real-time Claude Code task monitoring** - Track multiple Claude Code sessions across worktrees
+- **Interactive TUI** - Visual dashboard showing task status, duration, and last activity
+- **Auto-refresh** - UI automatically updates every second
+- **Claude Code hooks** - Automatic task progress tracking via hooks
+
+### Task Status Display
+
+| Status | Icon | Description |
+|--------|------|-------------|
+| **In Progress** | 🔵 | Claude is actively working |
+| **Stop** | 🟡 | Response completed, waiting for user |
+| **Session Ended** | ⚫ | Session has completed |
+| **Error** | 🔴 | Task encountered an error |
 
 ## Installation
+
+### Requirements
+
+- **Rust** 1.91.0 or later (for building from source)
+- **Python** 3.6 or later (for Claude Code hooks)
 
 ### From Source
 
 ```bash
-git clone https://github.com/USERNAME/wtenv.git
-cd wtenv
+git clone https://github.com/Coxless/ccmon.git
+cd ccmon
 cargo install --path .
 ```
 
 ### From Binary
 
-Download from [Releases](https://github.com/USERNAME/wtenv/releases) and place in your PATH.
+Download from [Releases](https://github.com/Coxless/ccmon/releases) and place in your PATH.
 
 ## Quick Start
 
 ```bash
-# Initialize config file
-wtenv init
+# Initialize Claude Code hooks
+ccmon init
 
-# Create worktree (interactive mode)
-wtenv create
-
-# Create worktree with branch name
-wtenv create feature-branch
-
-# List worktrees
-wtenv list
-
-# Remove worktree
-wtenv remove ../feature-branch
+# Launch interactive TUI
+ccmon ui
 ```
 
-## Configuration
+## Setup
 
-Create `.worktree.yml` in your repository root:
+### Initialize Hooks
 
-```yaml
-version: 1
+After installation, initialize Claude Code hooks in your repository:
 
-copy:
-  - .env
-  - .env.local
-  - config/*.local.json
-
-exclude:
-  - .env.production
-
-postCreate:
-  - command: npm install
-    description: "Installing dependencies..."
-  - command: npm run build
-    description: "Building project..."
-    optional: true
+```bash
+cd /path/to/your/repo
+ccmon init
 ```
 
-### Configuration Options
+This creates:
+- `.claude/settings.json` - Claude Code hook configuration
+- `.claude/hooks/session-init.sh` - Session start hook (shows git context)
+- `.claude/hooks/track-progress.py` - Task progress tracking hook
+- `~/.claude/stop-hook-git-check.sh` - Global stop hook (git status check)
 
-| Field | Description |
-|-------|-------------|
-| `version` | Config file version (currently: 1) |
-| `copy` | Glob patterns for files to copy |
-| `exclude` | Glob patterns for files to exclude |
-| `postCreate` | Commands to run after worktree creation |
+### Enable Hooks Globally
 
-### Post-Create Command Options
+To enable hooks for all projects:
 
-| Field | Description |
-|-------|-------------|
-| `command` | Shell command to execute |
-| `description` | Description shown during execution |
-| `optional` | If true, failure won't stop the process |
+```bash
+cp .claude/settings.json ~/.claude/settings.json
+```
+
+### Verify Setup
+
+```bash
+# Start a Claude Code session in the repository
+# Then run in another terminal:
+ccmon ui
+
+# You should see your active Claude session!
+```
 
 ## Commands
 
-### `wtenv create [BRANCH] [PATH]`
+### `ccmon init`
 
-Create a new worktree.
-
-```bash
-# Interactive mode
-wtenv create
-
-# Specify branch (path defaults to ../branch-name)
-wtenv create feature-auth
-
-# Specify branch and path
-wtenv create feature-auth ~/projects/feature-auth
-
-# Skip file copying
-wtenv create feature-auth --no-copy
-
-# Skip post-create commands
-wtenv create feature-auth --no-post-create
-```
-
-### `wtenv list`
-
-List all worktrees.
+Initialize Claude Code hooks in the current directory.
 
 ```bash
-wtenv list
-
-# Verbose mode (shows full commit hash)
-wtenv list --verbose
+ccmon init          # Create hooks
+ccmon init --force  # Overwrite existing hooks
 ```
 
-### `wtenv remove <PATH>`
+### `ccmon ui`
 
-Remove a worktree.
+Launch interactive TUI for monitoring Claude Code tasks.
 
 ```bash
-# Interactive confirmation
-wtenv remove ../feature-branch
-
-# Force removal (no confirmation)
-wtenv remove ../feature-branch --force
+ccmon ui
 ```
 
-### `wtenv init`
+#### Key Bindings
 
-Initialize configuration file.
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move to next task |
+| `k` / `↑` | Move to previous task |
+| `r` | Manual refresh |
+| `q` / `Esc` | Quit |
 
-```bash
-wtenv init
+#### Display Information
 
-# Overwrite existing config
-wtenv init --force
-```
-
-### `wtenv config`
-
-Display current configuration.
-
-```bash
-wtenv config
-
-# Show detailed information
-wtenv config --verbose
-```
+- Session ID
+- Working directory
+- Current status and duration
+- Last activity (tool used, file edited, etc.)
 
 ## Global Options
 
@@ -163,6 +125,19 @@ wtenv config --verbose
 | `-q, --quiet` | Suppress non-error output |
 | `-h, --help` | Show help |
 | `-V, --version` | Show version |
+
+## How It Works
+
+1. `ccmon init` creates hook scripts that Claude Code executes at various points:
+   - **SessionStart**: Records session start, shows git context
+   - **UserPromptSubmit**: Sets status to in_progress when user sends a prompt
+   - **PostToolUse**: Tracks tool usage (Edit, Bash, Read, etc.)
+   - **Stop**: Records when Claude is waiting for user input
+   - **SessionEnd**: Records session completion
+
+2. Hook events are written to `~/.claude/task-progress/<session_id>.jsonl`
+
+3. `ccmon ui` reads these files and displays real-time status
 
 ## License
 

@@ -1,159 +1,121 @@
-# wtenv - Git Worktree環境マネージャー
+# ccmon - Claude Code Monitor
 
-> **Warning**
-> このツールは開発中であり、安定版ではありません。使用する際は慎重に行ってください。
-
-高速でユーザーフレンドリーなgit worktree管理CLIツール。
+Claude Code の並列開発セッションをリアルタイムで監視するツール。
 
 ## 機能
 
-- ブランチ管理を含む簡単なworktree作成
-- 環境ファイルの自動コピー（設定ベース）
-- post-createコマンドの実行
-- 対話モード（引数なしで実行可能）
-- プログレス表示とカラー出力
-- 詳細/サイレント出力モード
+- **Claude Code タスクのリアルタイム監視** - 複数の Claude Code セッションを同時に追跡
+- **インタラクティブ TUI** - タスク状態、経過時間、最後のアクティビティを表示
+- **自動更新** - UI が1秒ごとに自動更新
+- **Claude Code hooks** - hooks による自動タスク進捗追跡
+
+### タスクステータス表示
+
+| ステータス | アイコン | 説明 |
+|-----------|---------|------|
+| **In Progress** | 🔵 | Claude がアクティブに作業中 |
+| **Stop** | 🟡 | レスポンス完了、ユーザー待ち |
+| **Session Ended** | ⚫ | セッション終了 |
+| **Error** | 🔴 | タスクでエラー発生 |
 
 ## インストール
+
+### 必要な環境
+
+- **Rust** 1.91.0 以降（ソースからビルドする場合）
+- **Python** 3.6 以降（Claude Code hooks 用）
 
 ### ソースから
 
 ```bash
-git clone https://github.com/USERNAME/wtenv.git
-cd wtenv
+git clone https://github.com/Coxless/ccmon.git
+cd ccmon
 cargo install --path .
 ```
 
 ### バイナリから
 
-[Releases](https://github.com/USERNAME/wtenv/releases)からダウンロードしてPATHに配置。
+[Releases](https://github.com/Coxless/ccmon/releases) からダウンロードして PATH に配置。
 
 ## クイックスタート
 
 ```bash
-# 設定ファイル初期化
-wtenv init
+# Claude Code hooks を初期化
+ccmon init
 
-# worktree作成（対話モード）
-wtenv create
-
-# ブランチ名を指定してworktree作成
-wtenv create feature-branch
-
-# worktree一覧
-wtenv list
-
-# worktree削除
-wtenv remove ../feature-branch
+# インタラクティブ TUI を起動
+ccmon ui
 ```
 
-## 設定
+## セットアップ
 
-リポジトリルートに`.worktree.yml`を作成:
+### hooks の初期化
 
-```yaml
-version: 1
+インストール後、リポジトリで Claude Code hooks を初期化：
 
-copy:
-  - .env
-  - .env.local
-  - config/*.local.json
-
-exclude:
-  - .env.production
-
-postCreate:
-  - command: npm install
-    description: "依存関係をインストール中..."
-  - command: npm run build
-    description: "プロジェクトをビルド中..."
-    optional: true
+```bash
+cd /path/to/your/repo
+ccmon init
 ```
 
-### 設定オプション
+以下のファイルが作成されます：
+- `.claude/settings.json` - Claude Code hook 設定
+- `.claude/hooks/session-init.sh` - セッション開始 hook（git コンテキスト表示）
+- `.claude/hooks/track-progress.py` - タスク進捗追跡 hook
+- `~/.claude/stop-hook-git-check.sh` - グローバル stop hook（git 状態チェック）
 
-| フィールド | 説明 |
-|-----------|------|
-| `version` | 設定ファイルバージョン（現在: 1） |
-| `copy` | コピーするファイルのglobパターン |
-| `exclude` | 除外するファイルのglobパターン |
-| `postCreate` | worktree作成後に実行するコマンド |
+### hooks をグローバルに有効化
 
-### post-createコマンドオプション
+すべてのプロジェクトで hooks を有効化：
 
-| フィールド | 説明 |
-|-----------|------|
-| `command` | 実行するシェルコマンド |
-| `description` | 実行中に表示される説明 |
-| `optional` | trueの場合、失敗しても続行 |
+```bash
+cp .claude/settings.json ~/.claude/settings.json
+```
+
+### セットアップの確認
+
+```bash
+# リポジトリで Claude Code セッションを開始
+# 別のターミナルで以下を実行：
+ccmon ui
+
+# アクティブな Claude セッションが表示されます！
+```
 
 ## コマンド
 
-### `wtenv create [BRANCH] [PATH]`
+### `ccmon init`
 
-新しいworktreeを作成。
-
-```bash
-# 対話モード
-wtenv create
-
-# ブランチ指定（パスは../branch-nameがデフォルト）
-wtenv create feature-auth
-
-# ブランチとパスを指定
-wtenv create feature-auth ~/projects/feature-auth
-
-# ファイルコピーをスキップ
-wtenv create feature-auth --no-copy
-
-# post-createコマンドをスキップ
-wtenv create feature-auth --no-post-create
-```
-
-### `wtenv list`
-
-すべてのworktreeを一覧表示。
+カレントディレクトリに Claude Code hooks を初期化。
 
 ```bash
-wtenv list
-
-# 詳細モード（完全なコミットハッシュを表示）
-wtenv list --verbose
+ccmon init          # hooks を作成
+ccmon init --force  # 既存の hooks を上書き
 ```
 
-### `wtenv remove <PATH>`
+### `ccmon ui`
 
-worktreeを削除。
+Claude Code タスク監視用のインタラクティブ TUI を起動。
 
 ```bash
-# 対話的に確認
-wtenv remove ../feature-branch
-
-# 強制削除（確認なし）
-wtenv remove ../feature-branch --force
+ccmon ui
 ```
 
-### `wtenv init`
+#### キーバインド
 
-設定ファイルを初期化。
+| キー | 操作 |
+|------|------|
+| `j` / `↓` | 次のタスクへ移動 |
+| `k` / `↑` | 前のタスクへ移動 |
+| `r` | 手動更新 |
+| `q` / `Esc` | 終了 |
 
-```bash
-wtenv init
+#### 表示情報
 
-# 既存の設定を上書き
-wtenv init --force
-```
-
-### `wtenv config`
-
-現在の設定を表示。
-
-```bash
-wtenv config
-
-# 詳細情報を表示
-wtenv config --verbose
-```
+- セッション ID
+- 作業ディレクトリ
+- 現在のステータスと経過時間
+- 最後のアクティビティ（使用ツール、編集ファイルなど）
 
 ## グローバルオプション
 
@@ -163,6 +125,19 @@ wtenv config --verbose
 | `-q, --quiet` | エラー以外の出力を抑制 |
 | `-h, --help` | ヘルプを表示 |
 | `-V, --version` | バージョンを表示 |
+
+## 仕組み
+
+1. `ccmon init` が hook スクリプトを作成。Claude Code が各ポイントで実行：
+   - **SessionStart**: セッション開始を記録、git コンテキストを表示
+   - **UserPromptSubmit**: ユーザープロンプト送信時に in_progress に設定
+   - **PostToolUse**: ツール使用を追跡（Edit, Bash, Read など）
+   - **Stop**: Claude がユーザー入力待ちの時を記録
+   - **SessionEnd**: セッション完了を記録
+
+2. hook イベントは `~/.claude/task-progress/<session_id>.jsonl` に書き込まれる
+
+3. `ccmon ui` がこれらのファイルを読み取り、リアルタイムでステータスを表示
 
 ## ライセンス
 
